@@ -1,28 +1,8 @@
-// experiment in making a low SLOC, but nice editing experience
-// some jank is probably to be expected, don't poke it too hard
-
-// this code is sickening, but so is contenteditable
-
 // BUG: If you create a list with some existing text, the cursor begins at the beginning rather than the end
 // On Chrome, not Firefox
 
-// BUG: You can delete all the .editor-line divs, which then breaks our assumptions
+// BUG: You can delete all the .rf-editor-line divs, which then breaks our assumptions
 // about how the data is structured. Don't allow the user to completely remove everything
-
-// BUG: Entering through a list takes you to a new .editor-line at the end of the file
-
-// DONE: List indent/dedent and handling
-// DONE: Headers
-// TODO: Improve bold/italicizing and add */**
-// TODO: Markdown lists
-// TODO: Indent inserts invisible list a-la dropbox paper
-// TODO: Links
-
-// Won't be added here, but things I plan to add:
-// - Hashtags + checkboxes
-// - Medium-style hover bar
-// - Code formatting
-// - Tables
 
 // for normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
@@ -94,23 +74,9 @@ const processTextNode = (textNode, regexen = normalRegexen) => {
     elt.innerHTML = result;
     parent.insertBefore(elt, textNode);
     parent.removeChild(textNode);
-    /*
-    Different approach: more complex and caused other problems
-    parent.innerHTML += result;
-    const range = document.createRange();
-    const sel = window.getSelection();
-    const txt = document.createTextNode(' ');
-    parent.appendChild(txt);
-
-    const lastNode = parent.childNodes[parent.childNodes.length - 1];
-    range.setStart(txt, 0);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    */
   } else if (type === 'header') {
     // Refuse to create a header at non-toplevel
-    if (!parent.classList.contains("editor-line") && !parent.classList.contains('fmt-span')) return;
+    if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('fmt-span')) return;
 
     const hnode = document.createElement(`h${result}`);
 
@@ -120,7 +86,7 @@ const processTextNode = (textNode, regexen = normalRegexen) => {
     // if this is a toplevel fmt-span
     if (parent.classList.contains('fmt-span')) {
       const fmtSpan = parent;
-      if (fmtSpan.parentElement.classList.contains('editor-line')) {
+      if (fmtSpan.parentElement.classList.contains('rf-editor-line')) {
         parent = fmtSpan.parentElement;
         parent.removeChild(fmtSpan);
       }
@@ -156,93 +122,93 @@ const processLastTextNode = (node) => {
 
 const getActiveElement = () => {
   const node = document.getSelection().anchorNode;
-  return (node.nodeType == 3 ? node.parentNode : node);
+  return (node.nodeType === 3 ? node.parentNode : node);
 }
 
 const nodeIsOrHasAncestorOfName = (node, nodeName) => {
   let next = node;
-  while (!next.classList.contains('editor')) {
+  while (!next.classList.contains('rf-editor')) {
     if (next.nodeName === nodeName) return true;
     next = next.parentNode;
   }
   return false;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('royal canadian mounted police eh');
-  const editor = document.getElementById('editor');
+export default class Editor {
+  mount(editor) {
+    editor.classList.add('rf-editor');
 
-  editor.addEventListener('keydown', e => {
-    if (e.isComposing || e.keyCode === 229) return;
-    // Trap tabs
-    if (e.keyCode === 9) {
-      e.preventDefault();
-      const activeElt = getActiveElement();
+    editor.addEventListener('keydown', e => {
+      if (e.isComposing || e.keyCode === 229) return;
+      // Trap tabs
+      if (e.keyCode === 9) {
+        e.preventDefault();
+        const activeElt = getActiveElement();
 
-      // TODO: Refuse to do this within a header
+        // TODO: Refuse to do this within a header
 
-      // normal insertUnorderedList will actually remove the list if there is one
-      // but indent will nest properly, like we want
-      const command = nodeIsOrHasAncestorOfName(activeElt, 'LI') ? 'indent' : 'insertUnorderedList';
+        // normal insertUnorderedList will actually remove the list if there is one
+        // but indent will nest properly, like we want
+        const command = nodeIsOrHasAncestorOfName(activeElt, 'LI') ? 'indent' : 'insertUnorderedList';
 
-      document.execCommand(command, false, null);
-    }
-  })
+        document.execCommand(command, false, null);
+      }
+    })
 
-  const observer = new MutationObserver((mutations, observer) => {
-    for (const mutation of mutations) {
-      if (mutation.type === 'characterData') {
-        processTextNode(mutation.target);
-      } else if (mutation.type === 'childList') {
-        // TBD: Handle formatting at the end of lists!
-        // Try to process the end of the last line, if the user has created a new one
-        if (mutation.target === editor && mutation.addedNodes.length === 1) {
-          const prevNode = mutation.addedNodes[0].previousSibling;
-          processLastTextNode(prevNode);
-        } else if (mutation.addedNodes.length === 1) {
-
-
-          const node = mutation.addedNodes[0];
-
-          // If true, we've just done an execCommand to create a list 
-          if (state.insertingMarkdownList && node.nodeName === 'UL') {
-            state.insertingMarkdownList = false;
-            const li = node.childNodes[0];
-
-            console.log('removing this:', li.innerHTML);
-            li.innerHTML = '';
-          } else if (state.insertingMarkdownList && node.nodeName === 'LI') {
-            // It's possible for an LI to be inserted as a list, because
-            // execCommand insertXList at the end of a list splices the LI
-            // back onto the list
-            state.insertingMarkdownList = false;
-            console.log('removing this:', node.innerHTML);
-            node.innerHTML = '';
-          }
+    const observer = new MutationObserver((mutations, observer) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') {
+          processTextNode(mutation.target);
+        } else if (mutation.type === 'childList') {
+          // TBD: Handle formatting at the end of lists!
+          // Try to process the end of the last line, if the user has created a new one
+          if (mutation.target === editor && mutation.addedNodes.length === 1) {
+            const prevNode = mutation.addedNodes[0].previousSibling;
+            processLastTextNode(prevNode);
+          } else if (mutation.addedNodes.length === 1) {
 
 
-          // Detect if a single div has been inserted, at non-toplevel
-          // If it has, splice it up to a toplevel .editor-line
+            const node = mutation.addedNodes[0];
 
-          if (node.nodeName === 'DIV' && node.parentElement !== parent) {
-            // This needs to happen right before the thing
-            node.parentElement.removeChild(node);
-            node.classList.add('editor-line');
-            editor.appendChild(node);
-            // Move cursor to new node
-            const range = document.createRange();
-            range.setStart(node, 0);
-            range.collapse(true);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
+            // If true, we've just done an execCommand to create a list 
+            if (state.insertingMarkdownList && node.nodeName === 'UL') {
+              state.insertingMarkdownList = false;
+              const li = node.childNodes[0];
+
+              console.log('removing this:', li.innerHTML);
+              li.innerHTML = '';
+            } else if (state.insertingMarkdownList && node.nodeName === 'LI') {
+              // It's possible for an LI to be inserted as a list, because
+              // execCommand insertXList at the end of a list splices the LI
+              // back onto the list
+              state.insertingMarkdownList = false;
+              console.log('removing this:', node.innerHTML);
+              node.innerHTML = '';
+            }
+
+
+            // Detect if a single div has been inserted, at non-toplevel
+            // If it has, splice it up to a toplevel .rf-editor-line
+
+            if (node.nodeName === 'DIV' && node.parentElement !== editor) {
+              node.parentElement.removeChild(node);
+              node.classList.add('rf-editor-line');
+              editor.appendChild(node);
+              // Move cursor to new node
+              const range = document.createRange();
+              range.setStart(node, 0);
+              range.collapse(true);
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
           }
         }
       }
-    }
-  });
+    });
 
-  observer.observe(editor, {
-    attributes: true, childList: true, subtree: true, characterData: true
-  });
-})
+    observer.observe(editor, {
+      attributes: true, childList: true, subtree: true, characterData: true
+    });
+  };
+}

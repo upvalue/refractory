@@ -1,4 +1,5 @@
 import React from 'react';
+import { Refractory } from './Refractory';
 
 const App = () => {
   return (
@@ -10,15 +11,9 @@ const App = () => {
 
           <p>This editor is the worst thing ever. If you have to use it, approach with caution.</p>
 
-          <br />
-
           <p>Text with one set of <em>_underscores_</em> or <em>*asterisks*</em>&nbsp; is <em>italicized</em>.</p>
 
-          <br />
-
           <p>Text with two sets of <strong>__underscores__</strong> or <strong>**asterisks**</strong>&nbsp; is <strong>bolded</strong>.</p>
-
-          <br />
 
           <ul>
             <li>Type an asterisk to begin a list</li>
@@ -29,9 +24,9 @@ const App = () => {
           </p>
         </div>
 
-        <div className="p2">
+        <Refractory>
           Editor goes here
-        </div>
+        </Refractory>
       </div>
     </div>
   );

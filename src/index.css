@@ -38,3 +38,13 @@ a {
 a:visited {
   color: #106ba3;
 }
+
+.rf-editor {
+  outline: none;
+  width: 800px;
+}
+
+
+.sidebar h3:first-of-type {
+  margin:0;
+}
