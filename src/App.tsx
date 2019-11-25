@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Refractory } from './Refractory';
 import Editor from './editor';
+import './editor.css';
 
 const App = () => {
   const ref = useRef<HTMLDivElement | null>(null);

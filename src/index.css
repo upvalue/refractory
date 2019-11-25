@@ -42,16 +42,6 @@ a:visited {
   color: #106ba3;
 }
 
-.rf-editor {
-  outline: none;
-  width: 800px;
-  line-height: 1.8em;
-}
-
-.rf-editor .rf-editor-line:first-child h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
-  margin-top: 0;
-}
-
 .sidebar h3:first-of-type {
   margin:0;
 }

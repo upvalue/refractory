@@ -1,6 +1,16 @@
 // BUG: If you create a list with some existing text, the cursor begins at the beginning rather than the end
 // On Chrome, not Firefox
 
+// BUG: If you enter a new line with formatting, it prevents other formatting from working
+// How to detect? Maybe we need to track execCommands or bolding state somehow?
+
+// TODO: hr
+// TODO: links
+// TODO: code
+// TODO: blockquote
+// TODO: cursor-based popup editor
+// TODO: Slash-commands (?)
+
 // for normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
 const normalRegexen = [
@@ -32,6 +42,22 @@ const moveCursor = (node, start = 0) => {
   range.collapse(true);
   sel.removeAllRanges();
   sel.addRange(range);
+}
+
+/**
+ * Check if a node is or has an ancestor with a particular nodeName (DIV, LI, etc)
+ * @param {*} node 
+ * @param {*} nodeNames Can be a string or an array of strings
+ */
+const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
+  if (typeof nodeNames === 'string') nodeNames = [nodeNames];
+
+  let next = node;
+  while (!next.classList.contains('rf-editor')) {
+    if (nodeNames.includes(next.nodeName)) return true;
+    next = next.parentNode;
+  }
+  return false;
 }
 
 const transformText = (str, regexen) => {
@@ -130,22 +156,6 @@ const processLastTextNode = (node) => {
 const getActiveElement = () => {
   const node = document.getSelection().anchorNode;
   return (node.nodeType === 3 ? node.parentNode : node);
-}
-
-/**
- * Check if a node is or has an ancestor with a particular nodeName (DIV, LI, etc)
- * @param {*} node 
- * @param {*} nodeNames Can be a string or an array of strings
- */
-const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
-  if (typeof nodeNames === 'string') nodeNames = [nodeNames];
-
-  let next = node;
-  while (!next.classList.contains('rf-editor')) {
-    if (nodeNames.includes(next.nodeName)) return true;
-    next = next.parentNode;
-  }
-  return false;
 }
 
 export default class Editor {
