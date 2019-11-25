@@ -1,9 +1,6 @@
 // BUG: If you create a list with some existing text, the cursor begins at the beginning rather than the end
 // On Chrome, not Firefox
 
-// BUG: You can delete all the .rf-editor-line divs, which then breaks our assumptions
-// about how the data is structured. Don't allow the user to completely remove everything
-
 // for normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
 const normalRegexen = [
@@ -191,30 +188,24 @@ export default class Editor {
               state.insertingMarkdownList = false;
               const li = node.childNodes[0];
 
-              console.log('removing this:', li.innerHTML);
               li.innerHTML = '';
             } else if (state.insertingMarkdownList && node.nodeName === 'LI') {
               // It's possible for an LI to be inserted as a list, because
               // execCommand insertXList at the end of a list splices the LI
               // back onto the list
               state.insertingMarkdownList = false;
-              console.log('removing this:', node.innerHTML);
               node.innerHTML = '';
             }
 
             // Detect if a single div has been inserted, at non-toplevel
             // If it has, splice it up to a toplevel .rf-editor-line
             if (node.nodeName === 'DIV' && node.parentElement !== editor) {
+              const parent = node.parentElement;
               node.parentElement.removeChild(node);
+              parent.parentElement.insertBefore(node, parent.nextSibling);
               node.classList.add('rf-editor-line');
-              editor.appendChild(node);
               // Move cursor to new node
-              const range = document.createRange();
-              range.setStart(node, 0);
-              range.collapse(true);
-              const sel = window.getSelection();
-              sel.removeAllRanges();
-              sel.addRange(range);
+              moveCursor(node, 0);
             }
           }
         }
