@@ -6,15 +6,18 @@
 
 // BUG: Occasionally the header transformation breaks
 
-// TODO: tables are probably too hard for this, but eventually
 // TODO: hr
 // TODO: links
 // TODO: code
 // TODO: blockquote
-// TODO: cursor-based popup editor
-// TODO: Slash-commands (?)
 
-// TODO: Hash
+// extended
+
+// TODO: Tables
+// TODO: Hashtags
+// TODO: cursor-based popup editor
+// TODO: extensibles slash-commands (?)
+// TODO: 
 
 // For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
