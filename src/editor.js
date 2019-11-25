@@ -22,6 +22,21 @@ let state = {
   insertingMarkdownList: false,
 };
 
+/**
+ * Move a cursor to a particular location within a node
+ * Used when splicing DOM nodes
+ * @param {*} node 
+ * @param {*} start 
+ */
+const moveCursor = (node, start = 0) => {
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.setStart(node, start);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 const transformText = (str, regexen) => {
   // Certain things are only processed when they are the first non-whitespace
   // character in the first four characters of a string
@@ -70,21 +85,21 @@ const processTextNode = (textNode, regexen = normalRegexen) => {
     // TODO: This creates garbage spans in the output. Is it possible to 
     // sub in HTML to the parent element at the caret?
     const elt = document.createElement('span');
-    elt.classList.add('fmt-span');
+    elt.classList.add('rf-fmt-span');
     elt.innerHTML = result;
     parent.insertBefore(elt, textNode);
     parent.removeChild(textNode);
   } else if (type === 'header') {
     // Refuse to create a header at non-toplevel
-    if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('fmt-span')) return;
+    if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('rf-fmt-span')) return;
 
     const hnode = document.createElement(`h${result}`);
 
     // Insert a zero-width space and put the user's cursor after it
     hnode.innerHTML = '&#8203;';
 
-    // if this is a toplevel fmt-span
-    if (parent.classList.contains('fmt-span')) {
+    // if this is a toplevel rf-fmt-span
+    if (parent.classList.contains('rf-fmt-span')) {
       const fmtSpan = parent;
       if (fmtSpan.parentElement.classList.contains('rf-editor-line')) {
         parent = fmtSpan.parentElement;
@@ -95,15 +110,10 @@ const processTextNode = (textNode, regexen = normalRegexen) => {
     parent.insertBefore(hnode, textNode);
     parent.removeChild(textNode);
 
-    const range = document.createRange();
-    const sel = window.getSelection();
-    range.setStart(hnode, 1);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    moveCursor(hnode, 1);
   } else if (type === 'list') {
     state.insertingMarkdownList = true;
-    if (nodeIsOrHasAncestorOfName(parent, 'UL')) {
+    if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
       return;
     }
     document.execCommand('insertUnorderedList');
@@ -125,10 +135,17 @@ const getActiveElement = () => {
   return (node.nodeType === 3 ? node.parentNode : node);
 }
 
-const nodeIsOrHasAncestorOfName = (node, nodeName) => {
+/**
+ * Check if a node is or has an ancestor with a particular nodeName (DIV, LI, etc)
+ * @param {*} node 
+ * @param {*} nodeNames Can be a string or an array of strings
+ */
+const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
+  if (typeof nodeNames === 'string') nodeNames = [nodeNames];
+
   let next = node;
   while (!next.classList.contains('rf-editor')) {
-    if (next.nodeName === nodeName) return true;
+    if (nodeNames.includes(next.nodeName)) return true;
     next = next.parentNode;
   }
   return false;
@@ -146,10 +163,11 @@ export default class Editor {
         const activeElt = getActiveElement();
 
         // TODO: Refuse to do this within a header
+        if (nodeIsOrHasAncestorOfNames(activeElt, ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'])) return;
 
         // normal insertUnorderedList will actually remove the list if there is one
         // but indent will nest properly, like we want
-        const command = nodeIsOrHasAncestorOfName(activeElt, 'LI') ? 'indent' : 'insertUnorderedList';
+        const command = nodeIsOrHasAncestorOfNames(activeElt, 'LI') ? 'indent' : 'insertUnorderedList';
 
         document.execCommand(command, false, null);
       }
@@ -166,8 +184,6 @@ export default class Editor {
             const prevNode = mutation.addedNodes[0].previousSibling;
             processLastTextNode(prevNode);
           } else if (mutation.addedNodes.length === 1) {
-
-
             const node = mutation.addedNodes[0];
 
             // If true, we've just done an execCommand to create a list 
@@ -186,10 +202,8 @@ export default class Editor {
               node.innerHTML = '';
             }
 
-
             // Detect if a single div has been inserted, at non-toplevel
             // If it has, splice it up to a toplevel .rf-editor-line
-
             if (node.nodeName === 'DIV' && node.parentElement !== editor) {
               node.parentElement.removeChild(node);
               node.classList.add('rf-editor-line');

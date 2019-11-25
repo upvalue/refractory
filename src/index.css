@@ -25,9 +25,12 @@ code {
 
 .sidebar {
   line-height: 1.4em;
-  background-color: #f5f8fa;
   border-radius: 4px;
   width: 300px;
+}
+
+.sidebar > div {
+  background-color: #f5f8fa;
 }
 
 a {
@@ -42,9 +45,18 @@ a:visited {
 .rf-editor {
   outline: none;
   width: 800px;
+  line-height: 1.8em;
 }
 
+.rf-editor h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
+  margin-top: 0;
+}
 
 .sidebar h3:first-of-type {
   margin:0;
+}
+
+.sidebar ul > ul {
+  padding-top: 5px;
+  padding-left: 10px;
 }
