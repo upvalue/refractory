@@ -3,7 +3,7 @@
 
 set -x
 
-yarn build
+yarn && yarn build
 cd ..
 rm -rf rf-gh-pages
 mkdir rf-gh-pages
@@ -13,3 +13,4 @@ git checkout gh-pages
 cp -ru ../refractory/build/* .
 git add .
 git commit -a
+git push git@github.com:upvalue/refractory.git gh-pages
