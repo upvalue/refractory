@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react';
-import { Refractory } from './Refractory';
 import Editor from './editor';
 import './editor.css';
 

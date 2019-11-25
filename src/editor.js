@@ -4,6 +4,9 @@
 // BUG: If you enter a new line with formatting, it prevents other formatting from working
 // How to detect? Maybe we need to track execCommands or bolding state somehow?
 
+// BUG: Occasionally the header transformation breaks
+
+// TODO: tables are probably too hard for this, but eventually
 // TODO: hr
 // TODO: links
 // TODO: code
@@ -11,7 +14,9 @@
 // TODO: cursor-based popup editor
 // TODO: Slash-commands (?)
 
-// for normal editing, we require some kind of breaking
+// TODO: Hash
+
+// For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
 const normalRegexen = [
   [/__(.+?)__([\s,])/g, '<strong>$1</strong>$2'],
@@ -19,15 +24,12 @@ const normalRegexen = [
   [/_(.+?)_[\s,]/g, '<em>$1</em>&nbsp;'],
 ]
 
-// for EOL we don't require following chars to handle things at the end of the line
+// For EOL we don't require subsequent whitespace, in order to handle things at the
+// the end of the line 
 const eolRegexen = [
   [/__(.+?)__/g, '<strong>$1</strong>'],
   [/_(.+?)_/g, '<em>$1</em>'],
 ]
-
-let state = {
-  insertingMarkdownList: false,
-};
 
 /**
  * Move a cursor to a particular location within a node
@@ -59,6 +61,15 @@ const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
   }
   return false;
 }
+
+/**
+ * Return the actively edited element
+ */
+const getActiveElement = () => {
+  const node = document.getSelection().anchorNode;
+  return (node.nodeType === 3 ? node.parentNode : node);
+}
+
 
 const transformText = (str, regexen) => {
   // Certain things are only processed when they are the first non-whitespace
@@ -97,79 +108,88 @@ const transformText = (str, regexen) => {
 }
 
 
-const processTextNode = (textNode, regexen = normalRegexen) => {
-  let parent = textNode.parentElement;
-  if (!parent) return;
-  const [type, result] = transformText(textNode.wholeText, regexen);
-
-  if (type === 'sub' && result !== textNode.wholeText) {
-    // markdown formatting occurred, sub in new stuff
-
-    // TODO: This creates garbage spans in the output. Is it possible to 
-    // sub in HTML to the parent element at the caret?
-    const elt = document.createElement('span');
-    elt.classList.add('rf-fmt-span');
-    elt.innerHTML = result;
-    parent.insertBefore(elt, textNode);
-    parent.removeChild(textNode);
-  } else if (type === 'header') {
-    // Refuse to create a header at non-toplevel
-    if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('rf-fmt-span')) return;
-
-    const hnode = document.createElement(`h${result}`);
-
-    // Insert a zero-width space and put the user's cursor after it
-    hnode.innerHTML = '&#8203;';
-
-    // if this is a toplevel rf-fmt-span
-    if (parent.classList.contains('rf-fmt-span')) {
-      const fmtSpan = parent;
-      if (fmtSpan.parentElement.classList.contains('rf-editor-line')) {
-        parent = fmtSpan.parentElement;
-        parent.removeChild(fmtSpan);
-      }
-    }
-
-    parent.insertBefore(hnode, textNode);
-    parent.removeChild(textNode);
-
-    moveCursor(hnode, 1);
-  } else if (type === 'list') {
-    state.insertingMarkdownList = true;
-    if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
-      return;
-    }
-    document.execCommand('insertUnorderedList');
-  }
-}
-
-const processLastTextNode = (node) => {
-  if (!node) return; // This can happen if all text is deleted
-  if (node.nodeType === Node.TEXT_NODE) {
-    processTextNode(node, eolRegexen);
-  } else {
-    if (node.childNodes.length === 0) return;
-    processLastTextNode(node.childNodes[node.childNodes.length - 1]);
-  }
-}
-
-const getActiveElement = () => {
-  const node = document.getSelection().anchorNode;
-  return (node.nodeType === 3 ? node.parentNode : node);
-}
 
 export default class Editor {
+  state = {
+    /**
+     * True when inserting a markdown list
+     */
+    insertingMarkdownList: false,
+    /**
+     * Used to avoid redundant observer dispatches
+     */
+    disableObserver: false,
+  };
+
+  processLastTextNode(node) {
+    if (!node) return; // This can happen if all text is deleted
+    if (node.nodeType === Node.TEXT_NODE) {
+      this.processTextNode(node, eolRegexen);
+    } else {
+      if (node.childNodes.length === 0) return;
+      this.processLastTextNode(node.childNodes[node.childNodes.length - 1]);
+    }
+  }
+
+  processTextNode(textNode, regexen = normalRegexen) {
+    let parent = textNode.parentElement;
+    if (!parent) return;
+    const [type, result] = transformText(textNode.wholeText, regexen);
+
+    if (type === 'sub' && result !== textNode.wholeText) {
+      // markdown formatting occurred, sub in new stuff
+
+      // TODO: This creates garbage spans in the output. Is it possible to 
+      // sub in HTML to the parent element at the caret?
+      const elt = document.createElement('span');
+      elt.classList.add('rf-fmt-span');
+      elt.innerHTML = result;
+      parent.insertBefore(elt, textNode);
+      parent.removeChild(textNode);
+    } else if (type === 'header') {
+      // Refuse to create a header at non-toplevel
+      if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('rf-fmt-span')) return;
+
+      // Create a header node
+      const hnode = document.createElement(`h${result}`);
+
+      // Insert a zero-width space and put the user's cursor after it
+      hnode.innerHTML = '&#8203;';
+
+      // if this is a toplevel rf-fmt-span, we'll remove it and splice it in
+      this.state.disableObserver = true;
+
+      if (parent.classList.contains('rf-fmt-span') && parent.parentElement.classList.contains('rf-editor-line')) {
+        const fmtSpan = parent;
+        fmtSpan.parentElement.insertBefore(hnode, fmtSpan);
+        fmtSpan.parentElement.removeChild(fmtSpan);
+      } else {
+        parent.insertBefore(hnode, textNode);
+        parent.removeChild(textNode);
+      }
+
+      moveCursor(hnode, 1);
+    } else if (type === 'list') {
+      this.state.insertingMarkdownList = true;
+      if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
+        return;
+      }
+      document.execCommand('insertUnorderedList');
+    }
+  }
+
   mount(editor) {
     editor.classList.add('rf-editor');
 
     editor.addEventListener('keydown', e => {
       if (e.isComposing || e.keyCode === 229) return;
+
       // Trap tabs
       if (e.keyCode === 9) {
         e.preventDefault();
         const activeElt = getActiveElement();
 
-        // TODO: Refuse to do this within a header
+        // Refuse to make a header into a list
         if (nodeIsOrHasAncestorOfNames(activeElt, ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'])) return;
 
         // normal insertUnorderedList will actually remove the list if there is one
@@ -182,28 +202,34 @@ export default class Editor {
 
     const observer = new MutationObserver((mutations, observer) => {
       for (const mutation of mutations) {
+        if (this.state.disableObserver) {
+          this.state.disableObserver = false;
+          return;
+        }
+
         if (mutation.type === 'characterData') {
-          processTextNode(mutation.target);
+          this.processTextNode(mutation.target);
         } else if (mutation.type === 'childList') {
           // TBD: Handle formatting at the end of lists!
+
           // Try to process the end of the last line, if the user has created a new one
           if (mutation.target === editor && mutation.addedNodes.length === 1) {
             const prevNode = mutation.addedNodes[0].previousSibling;
-            processLastTextNode(prevNode);
+            this.processLastTextNode(prevNode);
           } else if (mutation.addedNodes.length === 1) {
             const node = mutation.addedNodes[0];
 
             // If true, we've just done an execCommand to create a list 
-            if (state.insertingMarkdownList && node.nodeName === 'UL') {
-              state.insertingMarkdownList = false;
+            if (this.state.insertingMarkdownList && node.nodeName === 'UL') {
+              this.state.insertingMarkdownList = false;
               const li = node.childNodes[0];
 
               li.innerHTML = '';
-            } else if (state.insertingMarkdownList && node.nodeName === 'LI') {
+            } else if (this.state.insertingMarkdownList && node.nodeName === 'LI') {
               // It's possible for an LI to be inserted as a list, because
               // execCommand insertXList at the end of a list splices the LI
               // back onto the list
-              state.insertingMarkdownList = false;
+              this.state.insertingMarkdownList = false;
               node.innerHTML = '';
             }
 
