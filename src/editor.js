@@ -63,6 +63,19 @@ const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
 }
 
 /**
+ * Remove contenteditable state e.g. bold
+ * @param {*} name 
+ */
+const disableCommandState = (name) => {
+  if (document.queryCommandState(name) === true) {
+    document.execCommand(name);
+  }
+}
+
+const disableCommandStates = (...names) =>
+  names.forEach(disableCommandState);
+
+/**
  * Return the actively edited element
  */
 const getActiveElement = () => {
@@ -227,11 +240,11 @@ export default class Editor {
           } else if (mutation.addedNodes.length === 1) {
             const node = mutation.addedNodes[0];
 
-            // If true, we've just done an execCommand to create a list 
+            // If true, we've just done an execCommand to create a list, and now we need to 
+            // remove the text content
             if (this.state.insertingMarkdownList && node.nodeName === 'UL') {
               this.state.insertingMarkdownList = false;
               const li = node.childNodes[0];
-
               li.innerHTML = '';
             } else if (this.state.insertingMarkdownList && node.nodeName === 'LI') {
               // It's possible for an LI to be inserted as a list, because
@@ -250,7 +263,14 @@ export default class Editor {
               node.classList.add('rf-editor-line');
               // Move cursor to new node
               moveCursor(node, 0);
+
+              // Remove any formatting that is present
             }
+          }
+
+          // Don't carry over formatting to new lines
+          if (mutation.target === editor && mutation.addedNodes.length === 1 && mutation.addedNodes[0].classList.contains('rf-editor-line')) {
+            disableCommandStates('bold', 'italic', 'underline', 'strikethrough');
           }
         }
       }

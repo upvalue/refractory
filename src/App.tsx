@@ -26,7 +26,7 @@ const App = () => {
 
         <div className="sidebar mr4">
           <div className="p2">
-            <h3 className="h3 mb2">Refractory</h3>
+            <h3 className="mb2">Refractory</h3>
 
             <div className="buttons">
               {/*<button>Save to localStorage</button>
@@ -36,7 +36,7 @@ const App = () => {
 
             <p>Warning: contenteditable is gross. Approach with caution.</p>
 
-            <h3>### Type pound # then space to create a header</h3>
+            <h5>### Type pound # then space to create a header</h5>
 
             <p>Text with one set of <em>_underscores_</em> or <em>*asterisks*</em>&nbsp; is <em>italicized</em>.</p>
 
