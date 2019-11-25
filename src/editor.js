@@ -1,8 +1,8 @@
 // BUG: If you create a list with some existing text, the cursor begins at the beginning rather than the end
 // On Chrome, not Firefox
 
-// BUG: If you enter a new line with formatting, it prevents other formatting from working
-// How to detect? Maybe we need to track execCommands or bolding state somehow?
+// BUG: Introduce rich formatting to a code block, then try to turn it into a code block
+// It doesn't work because we only go off of text nodes
 
 // BUG: Occasionally the header transformation breaks
 
@@ -22,7 +22,10 @@ const normalRegexen = [
   [/__(.+?)__([\s,])/g, '<strong>$1</strong>$2'],
   // TODO how does the comma work? are there stop punctuation letters?o
   [/_(.+?)_[\s,]/g, '<em>$1</em>&nbsp;'],
+  [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
 ]
+
+// TODO: Backspacing into code should detransform the output
 
 // For EOL we don't require subsequent whitespace, in order to handle things at the
 // the end of the line 
@@ -135,6 +138,7 @@ export default class Editor {
     /**
      * True when inserting a markdown list
      */
+
     insertingMarkdownList: false,
     /**
      * Used to avoid redundant observer dispatches
@@ -228,6 +232,7 @@ export default class Editor {
           return;
         }
 
+        // console.log('MutationObserver', mutation);
         if (mutation.type === 'characterData') {
           this.processTextNode(mutation.target);
         } else if (mutation.type === 'childList') {
@@ -263,10 +268,20 @@ export default class Editor {
               node.classList.add('rf-editor-line');
               // Move cursor to new node
               moveCursor(node, 0);
+              return;
 
               // Remove any formatting that is present
             }
           }
+
+          // If user backspaces into a backtick inline code box, detransform it
+          if (mutation.removedNodes.length === 1) {
+            const node = mutation.removedNodes[0];
+            if (node.nodeType === Node.TEXT_NODE && node.wholeText === '' && mutation.previousSibling && mutation.previousSibling.classList.contains('rf-inline-code')) {
+            }
+          }
+
+          // Also, if user spaces out of a code bo
 
           // Don't carry over formatting to new lines
           if (mutation.target === editor && mutation.addedNodes.length === 1 && mutation.addedNodes[0].classList.contains('rf-editor-line')) {
