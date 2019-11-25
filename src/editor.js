@@ -70,7 +70,16 @@ const getActiveElement = () => {
   return (node.nodeType === 3 ? node.parentNode : node);
 }
 
-
+/**
+ * Given some arbitrary text determine what kind of transformation, if any
+ * should be done to it, e.g. __hello__ becomes <strong>hello</strong>
+ * 
+ * This function returning a transformation doesn't guarantee that it will happen
+ * e.g. we don't allow headers and lists anywhere except toplevel
+ * @param {*} str 
+ * @param {*} regexen 
+ * @returns a tuple describing what should occur
+ */
 const transformText = (str, regexen) => {
   // Certain things are only processed when they are the first non-whitespace
   // character in the first four characters of a string
@@ -97,17 +106,16 @@ const transformText = (str, regexen) => {
     // We have to use \s here instead of just checking for a space
     // because different browsers use different whitespacing strategies ;_;
     if (newStr.length > (i + 1) && /\s/.test(newStr[i + 1])) {
-      return ['header', headerSize, newStr.slice(i + 1).trimLeft()];
+      return ['header', headerSize];
     }
   } else if (formatChar.startsWith('*')) {
     return ['list', 'ordered'];
   }
 
   // Look at this I mean can you believe I did this?
+  // It's truly awful
   return ['sub', regexen.reduce((a, b) => a.replace(b[0], b[1]), str)];
 }
-
-
 
 export default class Editor {
   state = {
@@ -136,9 +144,9 @@ export default class Editor {
     if (!parent) return;
     const [type, result] = transformText(textNode.wholeText, regexen);
 
+    // Sub is the default return, but it doesn't mean anything actually changed, so check
+    // if it did before continuing
     if (type === 'sub' && result !== textNode.wholeText) {
-      // markdown formatting occurred, sub in new stuff
-
       // TODO: This creates garbage spans in the output. Is it possible to 
       // sub in HTML to the parent element at the caret?
       const elt = document.createElement('span');
