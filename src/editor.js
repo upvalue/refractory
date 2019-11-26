@@ -1,10 +1,7 @@
-// BUG: If you create a list with some existing text, the cursor begins at the beginning rather than the end
-// On Chrome, not Firefox
+// BUG: Deleting everything in Firefox causes an error
 
 // BUG: Introduce rich formatting to a code block, then try to turn it into a code block
 // It doesn't work because we only go off of text nodes
-
-// BUG: Occasionally the header transformation breaks
 
 // TODO: hr
 // TODO: links
@@ -264,14 +261,22 @@ export default class Editor {
         if (mutation.type === 'characterData') {
           this.processTextNode(mutation.target);
         } else if (mutation.type === 'childList') {
-          // TBD: Handle formatting at the end of lists!
+          // console.log(mutation);
+          const node = mutation.addedNodes[0];
 
-          // Try to process the end of the last line, if the user has created a new one
           if (mutation.target === editor && mutation.addedNodes.length === 1) {
-            const prevNode = mutation.addedNodes[0].previousSibling;
-            this.processLastTextNode(prevNode);
+            // Horizontal rules are added at the toplevel for some reason, but we don't want
+            // them to create a new text node after
+            if (node.nodeName === 'HR') {
+              moveCursor(node.nextSibling, 0);
+
+            } else if (node.nodeName === 'DIV') {
+              // If the user has created a new line, try to process the final piece of text
+              // they entered in case it is some markdown
+              const prevNode = mutation.addedNodes[0].previousSibling;
+              this.processLastTextNode(prevNode);
+            }
           } else if (mutation.addedNodes.length === 1) {
-            const node = mutation.addedNodes[0];
 
             // If true, we've just done an execCommand to create a list, and now we need to 
             // modify the text content
