@@ -245,19 +245,12 @@ export default class Editor {
     editor.addEventListener('keydown', e => {
       if (e.isComposing || e.keyCode === 229) return;
 
-      // Trap tabs
+      // Trap tabs, allow them to indent an active list (but only when within the list)
       if (e.keyCode === 9) {
-        e.preventDefault();
-        const activeElt = getActiveElement();
-
-        // Refuse to make a header into a list
-        if (nodeIsOrHasAncestorOfNames(activeElt, ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'])) return;
-
-        // normal insertUnorderedList will actually remove the list if there is one
-        // but indent will nest properly, like we want
-        const command = nodeIsOrHasAncestorOfNames(activeElt, 'LI') ? 'indent' : 'insertUnorderedList';
-
-        document.execCommand(command, false, null);
+        if (nodeIsOrHasAncestorOfNames(getActiveElement(), 'LI')) {
+          e.preventDefault();
+          document.execCommand('indent');
+        }
       }
     })
 
