@@ -9,11 +9,12 @@
 // TODO: hr
 // TODO: links
 // TODO: blockquote
+// TODO: unordered list
 
 // extended
 
 // TODO: saving/loading sanitized
-// TODO: code
+// TODO: code inline
 // TODO: Table of contents
 // TODO: Tables
 // TODO: Hashtags
@@ -31,8 +32,6 @@ const normalRegexen = [
   // Inline code blocks, WIP
   // [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
 ]
-
-// TODO: Backspacing into code should detransform the output
 
 // For EOL we don't require subsequent whitespace, in order to handle things at the
 // the end of the line 
@@ -116,40 +115,44 @@ const lastNodeIfText = (node) => {
  * 
  * This function returning a transformation doesn't guarantee that it will happen
  * e.g. we don't allow headers and lists anywhere except toplevel
- * @param {*} str 
- * @param {*} regexen 
+ * @param {boolean} toplevelLineStart true if this is the start of a line at the toplevel
+ * which is the only point at which certain things (lists, headers) are valid
+ * @param {string} str 
+ * @param {*} regexen pairs of regex and replacements 
  * @returns a tuple describing what should occur
  */
-const transformText = (str, regexen) => {
-  // Certain things are only processed when they are the first non-whitespace
-  // character in the first four characters of a string
-
-  // Headers & lists
-  const formatChar = str.slice(0, 4).trimLeft();
-
-  if (formatChar.startsWith('#')) {
-    let newStr = str.trimLeft()
-    let headerSize = 0;
-    // check for consecutive #'s to determine header size, check that there is a whitespace
-    // char following the # to indicate desire to header-ify
-    let i;
-    for (i = 0; i !== newStr.length; i += 1) {
-      if (newStr[i] === '#') {
-        headerSize += 1;
-        if (headerSize === 6) break;
-      } else {
-        i -= 1;
-        break;
+const transformText = (toplevelLineStart, str, regexen) => {
+  // Some things (headers, lists) are only allowed at the beginning of a line
+  if (toplevelLineStart) {
+    // These are only processed when they are the first non-whitespace character
+    // in the first four characters of a string
+    const formatChar = str.slice(0, 4).trimLeft();
+    if (formatChar.startsWith('#')) {
+      let newStr = str.trimLeft()
+      let headerSize = 0;
+      // check for consecutive #'s to determine header size, check that there is a whitespace
+      // char following the # to indicate desire to header-ify
+      let i;
+      for (i = 0; i !== newStr.length; i += 1) {
+        if (newStr[i] === '#') {
+          headerSize += 1;
+          if (headerSize === 6) break;
+        } else {
+          i -= 1;
+          break;
+        }
       }
-    }
 
-    // We have to use \s here instead of just checking for a space
-    // because different browsers use different whitespacing strategies ;_;
-    if (newStr.length > (i + 1) && /\s/.test(newStr[i + 1])) {
-      return ['header', headerSize];
+      // We have to use \s here instead of just checking for a space
+      // because different browsers use different whitespacing strategies ;_;
+      if (newStr.length > (i + 1) && /\s/.test(newStr[i + 1])) {
+        return ['header', headerSize];
+      }
+    } else if (formatChar.startsWith('* ') && formatChar.length >= 2) {
+      return ['list', 'ordered'];
+    } else if (formatChar.startsWith('---')) {
+      return ['hr', null];
     }
-  } else if (formatChar.startsWith('*') && formatChar.length === 1) {
-    return ['list', 'ordered'];
   }
 
   // Look at this I mean can you believe I did this?
@@ -182,8 +185,12 @@ export default class Editor {
 
   processTextNode(textNode, regexen = normalRegexen) {
     let parent = textNode.parentElement;
+    // TODO: Why did I add this? does this ever happen? :thonk:
     if (!parent) return;
-    const [type, result] = transformText(textNode.wholeText, regexen);
+
+    const isToplevel = textNode.parentElement.parentElement === this.editor && textNode.previousSibling === null;
+
+    const [type, result] = transformText(isToplevel, textNode.wholeText, regexen);
 
     // Sub is the default return, but it doesn't mean anything actually changed, so check
     // if it did before continuing
@@ -214,16 +221,25 @@ export default class Editor {
       parent.removeChild(textNode);
 
       moveCursor(hnode, 1);
+    } else if (type === 'hr') {
+      parent.removeChild(textNode);
+      document.execCommand('insertHorizontalRule');
     } else if (type === 'list') {
       if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
         return;
       }
-      this.state.insertingMarkdownList = true;
+      this.state.insertingMarkdownList = textNode.wholeText.split('*')[1].trimLeft();
       document.execCommand('insertUnorderedList');
     }
   }
 
+  save() {
+    return this.editor.innerHTML;
+  }
+
   mount(editor) {
+    this.editor = editor;
+
     editor.classList.add('rf-editor');
 
     editor.addEventListener('keydown', e => {
@@ -265,11 +281,16 @@ export default class Editor {
             const node = mutation.addedNodes[0];
 
             // If true, we've just done an execCommand to create a list, and now we need to 
-            // remove the text content
+            // modify the text content
             if (this.state.insertingMarkdownList && node.nodeName === 'UL') {
-              this.state.insertingMarkdownList = false;
               const li = node.childNodes[0];
-              li.innerHTML = '';
+              // Modify the text content to 1) remove the * (done in transformText) and 2)
+              // move the cursor to the front so the user can keep typing
+              li.innerHTML = this.state.insertingMarkdownList;
+
+              moveCursor(li, 1);
+
+              this.state.insertingMarkdownList = false;
             } else if (this.state.insertingMarkdownList && node.nodeName === 'LI') {
               // It's possible for an LI to be inserted as a list, because
               // execCommand insertXList at the end of a list splices the LI
@@ -312,7 +333,7 @@ export default class Editor {
           // Also, if user spaces out of a code bo
 
           // Don't carry over formatting to new lines
-          if (mutation.target === editor && mutation.addedNodes.length === 1 && mutation.addedNodes[0].classList.contains('rf-editor-line')) {
+          if (mutation.target === editor && mutation.addedNodes.length === 1 && mutation.addedNodes[0].nodeType !== Node.TEXT_NODE && mutation.addedNodes[0].classList.contains('rf-editor-line')) {
             disableCommandStates('bold', 'italic', 'underline', 'strikethrough');
           }
         }

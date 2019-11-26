@@ -4,6 +4,13 @@
   line-height: 1.8em;
 }
 
+.rf-editor hr {
+  border-top: 1px solid #293742;
+  border-bottom: 0;
+  border-left: 0;
+  border-right: 0;
+}
+
 .rf-editor .rf-editor-line:first-child h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
   margin-top: 0;
 }
