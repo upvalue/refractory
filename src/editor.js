@@ -39,8 +39,8 @@ const normalRegexen = [
 const eolRegexen = [
   [/\*\*(.+?)\*\*/g, '<strong>$1</strong>'],
   [/__(.+?)__/g, '<strong>$1</strong>'],
-  [/_(.+?)_/g, '<em>$1</em>'],
   [/\*(.+?)\*/g, '<em>$1</em>'],
+  [/_(.+?)_/g, '<em>$1</em>'],
 ]
 
 /**
@@ -100,7 +100,6 @@ const getActiveElement = () => {
  */
 const lastNodeIfText = (node) => {
   let i = node;
-  console.log(node);
   while (i.nodeType !== Node.TEXT_NODE) {
     if (i.childNodes.length > 0) {
       i = i.childNodes[i.childNodes.length - 1];
@@ -149,7 +148,7 @@ const transformText = (str, regexen) => {
     if (newStr.length > (i + 1) && /\s/.test(newStr[i + 1])) {
       return ['header', headerSize];
     }
-  } else if (formatChar.startsWith('*')) {
+  } else if (formatChar.startsWith('*') && formatChar.length === 1) {
     return ['list', 'ordered'];
   }
 
@@ -216,10 +215,10 @@ export default class Editor {
 
       moveCursor(hnode, 1);
     } else if (type === 'list') {
-      this.state.insertingMarkdownList = true;
       if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
         return;
       }
+      this.state.insertingMarkdownList = true;
       document.execCommand('insertUnorderedList');
     }
   }
@@ -253,7 +252,6 @@ export default class Editor {
           return;
         }
 
-        // console.log('MutationObserver', mutation);
         if (mutation.type === 'characterData') {
           this.processTextNode(mutation.target);
         } else if (mutation.type === 'childList') {
