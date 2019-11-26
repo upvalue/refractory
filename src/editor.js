@@ -90,6 +90,22 @@ const getActiveElement = () => {
   return (node.nodeType === 3 ? node.parentNode : node);
 }
 
+/*
+ * Return the last node in a node tree, if it is text, regardless of depth
+ */
+const lastNodeIfText = (node) => {
+  let i = node;
+  console.log(node);
+  while (i.nodeType !== Node.TEXT_NODE) {
+    if (i.childNodes.length > 0) {
+      i = i.childNodes[i.childNodes.length - 1];
+      continue;
+    }
+    return null;
+  }
+  return i;
+}
+
 /**
  * Given some arbitrary text determine what kind of transformation, if any
  * should be done to it, e.g. __hello__ becomes <strong>hello</strong>
@@ -168,16 +184,21 @@ export default class Editor {
     // Sub is the default return, but it doesn't mean anything actually changed, so check
     // if it did before continuing
     if (type === 'sub' && result !== textNode.wholeText) {
-      // TODO: This creates garbage spans in the output. Is it possible to 
-      // sub in HTML to the parent element at the caret?
-      const elt = document.createElement('span');
-      elt.classList.add('rf-fmt-span');
-      elt.innerHTML = result;
-      parent.insertBefore(elt, textNode);
+      // TODO: Probably so small as to be pointless, but maybe we should reuse the same span for
+      // each of these operations
+      // Use a temporary element to convert this to real DOM nodes
+      const tmp = document.createElement('span');
+
+      // Insert the dom nodes before that text
+      tmp.innerHTML = result;
+
+      while (tmp.childNodes.length) {
+        parent.insertBefore(tmp.childNodes[0], textNode);
+      }
       parent.removeChild(textNode);
     } else if (type === 'header') {
       // Refuse to create a header at non-toplevel
-      if (!parent.classList.contains("rf-editor-line") && !parent.classList.contains('rf-fmt-span')) return;
+      if (!parent.classList.contains("rf-editor-line")) return;
 
       // Create a header node
       const hnode = document.createElement(`h${result}`);
@@ -185,17 +206,8 @@ export default class Editor {
       // Insert a zero-width space and put the user's cursor after it
       hnode.innerHTML = '&#8203;';
 
-      // if this is a toplevel rf-fmt-span, we'll remove it and splice it in
-      this.state.disableObserver = true;
-
-      if (parent.classList.contains('rf-fmt-span') && parent.parentElement.classList.contains('rf-editor-line')) {
-        const fmtSpan = parent;
-        fmtSpan.parentElement.insertBefore(hnode, fmtSpan);
-        fmtSpan.parentElement.removeChild(fmtSpan);
-      } else {
-        parent.insertBefore(hnode, textNode);
-        parent.removeChild(textNode);
-      }
+      parent.insertBefore(hnode, textNode);
+      parent.removeChild(textNode);
 
       moveCursor(hnode, 1);
     } else if (type === 'list') {
@@ -261,13 +273,13 @@ export default class Editor {
               // back onto the list
               this.state.insertingMarkdownList = false;
               node.innerHTML = '';
-            } else if (node.nodeName === 'LI') {
+            } else if (node.nodeName === 'LI' && node.previousSibling) {
               // Detect when an LI has been added to a list in order to fully process
               // the text nodes of the last LI
-              if (node.previousSibling && node.previousSibling.nodeName === 'LI' && node.previousSibling.childNodes.length > 0 && node.previousSibling.childNodes[node.previousSibling.childNodes.length - 1].nodeType === Node.TEXT_NODE) {
-                this.processLastTextNode(node.previousSibling.childNodes[node.previousSibling.childNodes.length - 1]);
+              const lastTextNode = lastNodeIfText(node.previousSibling);
+              if (lastTextNode) {
+                this.processLastTextNode(lastTextNode);
               }
-
             } else if (node.nodeName === 'DIV' && node.parentElement !== editor) {
               // Detect if a single div has been inserted, at non-toplevel
               // If it has, splice it up to a toplevel .rf-editor-line
