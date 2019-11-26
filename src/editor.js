@@ -23,8 +23,10 @@
 // For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
 const normalRegexen = [
+  // TODO: Better separation characters
+  [/\*\*(.+?)\*\*([\s,])/g, '<strong>$1</strong>$2'],
   [/__(.+?)__([\s,])/g, '<strong>$1</strong>$2'],
-  // TODO how does the comma work? are there stop punctuation letters?o
+  [/\*(.+?)\*[\s,]/g, '<em>$1</em>&nbsp;'],
   [/_(.+?)_[\s,]/g, '<em>$1</em>&nbsp;'],
   // [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
 ]
@@ -34,8 +36,11 @@ const normalRegexen = [
 // For EOL we don't require subsequent whitespace, in order to handle things at the
 // the end of the line 
 const eolRegexen = [
-  [/__(.+?)__/g, '<strong>$1</strong>'],
+  [/\*\*(.+?)\*\*/g, '<strong>$1</strong>$2'],
+  [/__(.+?)__/g, '<strong>$1</strong>$2'],
   [/_(.+?)_/g, '<em>$1</em>'],
+  // TODO how does the comma work? are there stop punctuation letters?o
+  [/_\*(.+?)\*/g, '<em>$1</em>&nbsp;'],
 ]
 
 /**
