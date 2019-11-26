@@ -18,6 +18,11 @@
 // TODO: cursor-based popup editor
 // TODO: extensible slash-commands (?)
 
+/**
+ * True if running on Firefox
+ */
+const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+
 // For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
 const normalRegexen = [
@@ -95,13 +100,19 @@ const getActiveElement = () => {
  * Return the last node in a node tree, if it is text, regardless of depth
  */
 const lastNodeIfText = (node) => {
+  if (!node) return;
   let i = node;
   while (i.nodeType !== Node.TEXT_NODE) {
     if (i.childNodes.length > 0) {
+      let j = i.childNodes.length - 1;
+      // Skip over BRs which Firefox inserts for some fun reason
+      for (; j > 0; j -= 1) {
+        if (i.childNodes[j].nodeName !== 'BR') break;
+      }
       i = i.childNodes[i.childNodes.length - 1];
       continue;
     }
-    return null;
+    return;
   }
   return i;
 }
@@ -261,8 +272,15 @@ export default class Editor {
         if (mutation.type === 'characterData') {
           this.processTextNode(mutation.target);
         } else if (mutation.type === 'childList') {
-          // console.log(mutation);
           const node = mutation.addedNodes[0];
+
+          if (!node) return;
+
+          if (node.nodeName === 'BR' && isFirefox) {
+            // Firefox inserts BRs with new lines for fun
+            this.processTextNode(mutation.previousSibling, eolRegexen);
+            return;
+          }
 
           if (mutation.target === editor && mutation.addedNodes.length === 1) {
             // Horizontal rules are added at the toplevel for some reason, but we don't want
@@ -273,8 +291,10 @@ export default class Editor {
             } else if (node.nodeName === 'DIV') {
               // If the user has created a new line, try to process the final piece of text
               // they entered in case it is some markdown
-              const prevNode = mutation.addedNodes[0].previousSibling;
-              this.processLastTextNode(prevNode);
+              console.log(mutation.addedNodes[0].previousSibling);
+              const prevTextNode = lastNodeIfText(mutation.addedNodes[0].previousSibling);
+              if (prevTextNode) this.processTextNode(prevTextNode, eolRegexen);
+              // this.processLastTextNode(prevNode);
             }
           } else if (mutation.addedNodes.length === 1) {
 
