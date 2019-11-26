@@ -28,6 +28,7 @@ const normalRegexen = [
   [/__(.+?)__([\s,])/g, '<strong>$1</strong>$2'],
   [/\*(.+?)\*[\s,]/g, '<em>$1</em>&nbsp;'],
   [/_(.+?)_[\s,]/g, '<em>$1</em>&nbsp;'],
+  // Inline code blocks, WIP
   // [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
 ]
 
@@ -36,10 +37,9 @@ const normalRegexen = [
 // For EOL we don't require subsequent whitespace, in order to handle things at the
 // the end of the line 
 const eolRegexen = [
-  [/\*\*(.+?)\*\*/g, '<strong>$1</strong>$2'],
-  [/__(.+?)__/g, '<strong>$1</strong>$2'],
+  [/\*\*(.+?)\*\*/g, '<strong>$1</strong>'],
+  [/__(.+?)__/g, '<strong>$1</strong>'],
   [/_(.+?)_/g, '<em>$1</em>'],
-  // TODO how does the comma work? are there stop punctuation letters?o
   [/_\*(.+?)\*/g, '<em>$1</em>&nbsp;'],
 ]
 
