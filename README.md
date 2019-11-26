@@ -7,6 +7,7 @@ An experiment in trying to make a low SLOC, but decent editor based on MutationO
 - Support markdown-ish content in a rich text editing fashion
 - Keep it relatively small
 - Producing sensible HTML output
+- "There's only one way to do it" (except markdown bold and italic :cry:)
 
 ## Non goals
 
