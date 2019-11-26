@@ -8,16 +8,17 @@
 
 // TODO: hr
 // TODO: links
-// TODO: code
 // TODO: blockquote
 
 // extended
 
+// TODO: saving/loading sanitized
+// TODO: code
+// TODO: Table of contents
 // TODO: Tables
 // TODO: Hashtags
 // TODO: cursor-based popup editor
-// TODO: extensibles slash-commands (?)
-// TODO: 
+// TODO: extensible slash-commands (?)
 
 // For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
@@ -25,7 +26,7 @@ const normalRegexen = [
   [/__(.+?)__([\s,])/g, '<strong>$1</strong>$2'],
   // TODO how does the comma work? are there stop punctuation letters?o
   [/_(.+?)_[\s,]/g, '<em>$1</em>&nbsp;'],
-  [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
+  // [/`(.+?)`/g, '<span class="rf-inline-code">$1</span>&#8203;']
 ]
 
 // TODO: Backspacing into code should detransform the output
@@ -260,11 +261,16 @@ export default class Editor {
               // back onto the list
               this.state.insertingMarkdownList = false;
               node.innerHTML = '';
-            }
+            } else if (node.nodeName === 'LI') {
+              // Detect when an LI has been added to a list in order to fully process
+              // the text nodes of the last LI
+              if (node.previousSibling && node.previousSibling.nodeName === 'LI' && node.previousSibling.childNodes.length > 0 && node.previousSibling.childNodes[node.previousSibling.childNodes.length - 1].nodeType === Node.TEXT_NODE) {
+                this.processLastTextNode(node.previousSibling.childNodes[node.previousSibling.childNodes.length - 1]);
+              }
 
-            // Detect if a single div has been inserted, at non-toplevel
-            // If it has, splice it up to a toplevel .rf-editor-line
-            if (node.nodeName === 'DIV' && node.parentElement !== editor) {
+            } else if (node.nodeName === 'DIV' && node.parentElement !== editor) {
+              // Detect if a single div has been inserted, at non-toplevel
+              // If it has, splice it up to a toplevel .rf-editor-line
               const parent = node.parentElement;
               node.parentElement.removeChild(node);
               parent.parentElement.insertBefore(node, parent.nextSibling);
@@ -281,6 +287,10 @@ export default class Editor {
           if (mutation.removedNodes.length === 1) {
             const node = mutation.removedNodes[0];
             if (node.nodeType === Node.TEXT_NODE && node.wholeText === '' && mutation.previousSibling && mutation.previousSibling.classList.contains('rf-inline-code')) {
+              const codeSpan = mutation.previousSibling;
+              const detransformed = document.createTextNode(`\`${codeSpan.innerHTML}`);
+              codeSpan.parentElement.insertBefore(detransformed, codeSpan);
+              codeSpan.parentElement.removeChild(codeSpan);
             }
           }
 
