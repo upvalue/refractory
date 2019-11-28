@@ -21,7 +21,7 @@ const App = () => {
   }
 
   return (
-    <div className="App flex justify-center pt4">
+    <div className="App flex justify-center pt3">
       <div className="flex">
 
         <div className="sidebar mr4">
@@ -29,8 +29,6 @@ const App = () => {
             <h3 className="mb2">Refractory</h3>
 
             <div className="buttons">
-              {/*<button>Save to localStorage</button>
-              <button>Load from localStorage</button>*/}
               <button onClick={actionReset}>Reset</button>
             </div>
 
@@ -42,10 +40,13 @@ const App = () => {
 
             <p>Text with two sets of <strong>__underscores__</strong> or <strong>**asterisks**</strong>&nbsp; is <strong>bolded</strong>.</p>
 
+            <blockquote>Type |, space and text to create a blockquote.</blockquote>
+
+
             <ul className="pl2">
-              <li>Type an asterisk to begin a list</li>
+              <li>* Type an asterisk, space and character to begin a list</li>
               <ul className="pl3">
-                <li>Tab to indent, press enter on an empty item to dedent</li>
+                <li>&lt;tab&gt; to indent, press &lt;enter&gt; on an empty item to dedent</li>
               </ul>
             </ul>
 

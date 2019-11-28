@@ -28,3 +28,9 @@
     "Courier New",
     monospace;
 }
+
+.rf-editor blockquote {
+  border-left: 2px solid #293742;
+  padding-left: 6px;
+  margin-left: 0;
+}

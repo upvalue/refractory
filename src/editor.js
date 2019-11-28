@@ -3,7 +3,10 @@
 // BUG: Introduce rich formatting to a code block, then try to turn it into a code block
 // It doesn't work because we only go off of text nodes
 
+// BUG: creating HRs after a list adds it to the end of the list (super weird?)
+
 // TODO: hr
+// in place but buggy
 // TODO: links
 // TODO: blockquote
 // TODO: unordered list
@@ -11,6 +14,7 @@
 // extended
 
 // TODO: saving/loading sanitized
+// or just create sanitized output (get rid of rf-editor-lines?)
 // TODO: code inline
 // TODO: Table of contents
 // TODO: Tables
@@ -53,10 +57,28 @@ const eolRegexen = [
 const moveCursor = (node, start = 0) => {
   const range = document.createRange();
   const sel = window.getSelection();
-  range.setStart(node, start);
+  try {
+    range.setStart(node, start);
+  } catch (e) {
+    range.setStart(node, 0);
+  }
   range.collapse(true);
   sel.removeAllRanges();
   sel.addRange(range);
+}
+
+/**
+ * Insert a node after a particular node
+ * @param {*} parent 
+ * @param {*} node 
+ * @param {*} newNode 
+ */
+const insertAfter = (parent, node, newNode) => {
+  if (node.nextSibling) {
+    parent.insertBefore(newNode, node.nextSibling);
+  } else {
+    parent.appendChild(newNode);
+  }
 }
 
 /**
@@ -69,7 +91,7 @@ const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
 
   let next = node;
   while (!next.classList.contains('rf-editor')) {
-    if (nodeNames.includes(next.nodeName)) return true;
+    if (nodeNames.includes(next.nodeName)) return next;
     next = next.parentNode;
   }
   return false;
@@ -158,8 +180,10 @@ const transformText = (toplevelLineStart, str, regexen) => {
       }
     } else if (formatChar.startsWith('* ') && formatChar.length >= 2) {
       return ['list', 'ordered'];
+    } else if (formatChar.startsWith('> ') && formatChar.length >= 2) {
+      return ['blockquote'];
     } else if (formatChar.startsWith('---')) {
-      return ['hr', null];
+      return ['sub', '<hr />'];
     }
   }
 
@@ -168,13 +192,19 @@ const transformText = (toplevelLineStart, str, regexen) => {
   return ['sub', regexen.reduce((a, b) => a.replace(b[0], b[1]), str)];
 }
 
+const assert = (desc, expr) => {
+  if (!expr) {
+    console.warn(`assertion: ${desc} failed`);
+  }
+}
+
 export default class Editor {
   state = {
     /**
      * True when inserting a markdown list
      */
-
     insertingMarkdownList: false,
+
     /**
      * Used to avoid redundant observer dispatches
      */
@@ -203,16 +233,11 @@ export default class Editor {
     // Sub is the default return, but it doesn't mean anything actually changed, so check
     // if it did before continuing
     if (type === 'sub' && result !== textNode.wholeText) {
-      // TODO: Probably so small as to be pointless, but maybe we should reuse the same span for
-      // each of these operations
       // Use a temporary element to convert this to real DOM nodes
-      const tmp = document.createElement('span');
+      this.tmp.innerHTML = result;
 
-      // Insert the dom nodes before that text
-      tmp.innerHTML = result;
-
-      while (tmp.childNodes.length) {
-        parent.insertBefore(tmp.childNodes[0], textNode);
+      while (this.tmp.childNodes.length) {
+        parent.insertBefore(this.tmp.childNodes[0], textNode);
       }
       parent.removeChild(textNode);
     } else if (type === 'header') {
@@ -233,11 +258,16 @@ export default class Editor {
       parent.removeChild(textNode);
       document.execCommand('insertHorizontalRule');
     } else if (type === 'list') {
-      if (nodeIsOrHasAncestorOfNames(parent, 'UL')) {
-        return;
-      }
       this.state.insertingMarkdownList = textNode.wholeText.split('*')[1].trimLeft();
       document.execCommand('insertUnorderedList');
+    } else if (type === 'blockquote') {
+      const bnode = document.createElement('blockquote');
+      bnode.innerHTML = `${textNode.wholeText.split('>')[1].trimLeft()}`;
+      parent.insertBefore(bnode, textNode);
+      parent.removeChild(textNode);
+
+
+      moveCursor(bnode, 1);
     }
   }
 
@@ -247,17 +277,60 @@ export default class Editor {
 
   mount(editor) {
     this.editor = editor;
+    this.tmp = document.createElement('span');
 
     editor.classList.add('rf-editor');
 
     editor.addEventListener('keydown', e => {
       if (e.isComposing || e.keyCode === 229) return;
 
+      const activeElement = getActiveElement();
+
       // Trap tabs, allow them to indent an active list (but only when within the list)
       if (e.keyCode === 9) {
-        if (nodeIsOrHasAncestorOfNames(getActiveElement(), 'LI')) {
+        if (nodeIsOrHasAncestorOfNames(activeElement, 'LI')) {
           e.preventDefault();
           document.execCommand('indent');
+        }
+      } else if (e.keyCode === 13) {
+        // Trap enters and handle them differently within specific elements
+        const blockquote = nodeIsOrHasAncestorOfNames(activeElement, 'BLOCKQUOTE');
+        if (blockquote) {
+          e.preventDefault();
+          // OK so need
+          // If this is at the end of the line, or an empty line, remove the blockquote
+          // If this is within a line, insert a br at selection and move everything in it
+          // to a new text node after the selection
+          const selObj = window.getSelection();
+          if (selObj.anchorOffset !== selObj.focusOffset) {
+            // An actual selection, delete and insert
+            console.warn('unimplemented');
+          } else {
+            // If user has inserted something, insert a new line and continue within this blockquote
+            console.log(selObj);
+            if (selObj.anchorNode.wholeText === '\u00A0') {
+              selObj.anchorNode.parentElement.removeChild(selObj.anchorNode);
+              const node = document.createElement('div');
+              node.innerHTML = '<br>';
+              node.classList.add('rf-editor-line');
+              insertAfter(blockquote.parentElement.parentElement, blockquote.parentElement, node);
+              moveCursor(node, 1);
+            } else {
+              const textAfter = selObj.anchorNode.wholeText && selObj.anchorNode.wholeText.slice(selObj.anchorOffset);
+              const br = document.createElement('br');
+              insertAfter(blockquote, selObj.anchorNode, br);
+              if (textAfter) {
+                const text = document.createTextNode(textAfter);
+                selObj.anchorNode.data = selObj.anchorNode.wholeText.slice(0, selObj.anchorOffset);
+                insertAfter(blockquote, br, text);
+                moveCursor(text, 0);
+              } else {
+                const nbsp = document.createTextNode('\u00A0');
+                insertAfter(blockquote, br, nbsp);
+                moveCursor(nbsp, 0);
+              }
+            }
+          }
         }
       }
     })
@@ -282,25 +355,52 @@ export default class Editor {
             return;
           }
 
-          if (mutation.target === editor && mutation.addedNodes.length === 1) {
-            // Horizontal rules are added at the toplevel for some reason, but we don't want
-            // them to create a new text node after
-            if (node.nodeName === 'HR') {
-              moveCursor(node.nextSibling, 0);
 
-            } else if (node.nodeName === 'DIV') {
+          if (node.nodeName === 'HR') {
+            // Horizontal rules are added at the toplevel for some reason, but we don't want
+            // them to create a new text node after so select the div after them
+            /*
+            const newLine = document.createElement('div');
+            newLine.innerHTML = "";
+            newLine.classList.add('rf-editor-line');
+            if (node.parentElement.nextSibling) {
+              node.parentElement.parentElement.insertBefore(node, node.parentElement.nextSibling);
+            } else {
+              node.parentElement.parentElement.appendChild(node);
+            }
+            moveCursor(newLine, 0);
+            console.log('hehe');
+            */
+            // node.parentElement.nextSibling
+            //console.log(mutation, node);
+            // moveCursor(newLine, 0);
+            /*
+              const parent = node.parentElement;
+              node.parentElement.removeChild(node);
+              parent.parentElement.insertBefore(node, parent.nextSibling);
+              node.classList.add('rf-editor-line');
+              */
+          }
+
+          // TODO: Some major cleanup is required here
+          // It would be nice to codify these branches into something more formal, for example
+          // a table of rules e.g. what to do when user inserts a blockquote, etc
+
+          // Another way to clean this up is that I'm being super defensive with some of these
+          // conditions and perhaps they should be converted to assertions within the body
+          // and logs monitored to see if they ever actually happen
+
+          if (mutation.target === editor && mutation.addedNodes.length === 1) {
+            if (node.nodeName === 'DIV') {
               // If the user has created a new line, try to process the final piece of text
               // they entered in case it is some markdown
-              console.log(mutation.addedNodes[0].previousSibling);
               const prevTextNode = lastNodeIfText(mutation.addedNodes[0].previousSibling);
               if (prevTextNode) this.processTextNode(prevTextNode, eolRegexen);
-              // this.processLastTextNode(prevNode);
             }
           } else if (mutation.addedNodes.length === 1) {
-
-            // If true, we've just done an execCommand to create a list, and now we need to 
-            // modify the text content
             if (this.state.insertingMarkdownList && node.nodeName === 'UL') {
+              // If true, we've just done an execCommand to create a list, and now we need to 
+              // modify the text content
               const li = node.childNodes[0];
               // Modify the text content to 1) remove the * (done in transformText) and 2)
               // move the cursor to the front so the user can keep typing
@@ -361,5 +461,7 @@ export default class Editor {
     observer.observe(editor, {
       attributes: true, childList: true, subtree: true, characterData: true
     });
+
+    this.observer = observer;
   };
 }

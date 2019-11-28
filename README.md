@@ -13,7 +13,9 @@ An experiment in trying to make a low SLOC, but decent editor based on MutationO
 
 - Being a highly extensible editor framework
 - Supporting Markdown or any other standard exactly as written
+- Supporting pasting in content created elsewhere and editing it well
 
 ## How to use in your own projects
 
 Right now just copy the files from src/; it's not npm-ready
+

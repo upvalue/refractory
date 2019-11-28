@@ -70,3 +70,10 @@ a:visited {
 .sidebar .buttons button:hover {
   background-color: #106ba3;
 }
+
+.sidebar blockquote {
+  
+  border-left: 2px solid #293742;
+  padding-left: 6px;
+  margin-left: 0;
+}
