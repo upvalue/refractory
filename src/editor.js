@@ -1,3 +1,5 @@
+import { useLayoutEffect } from 'react';
+
 /* eslint-disable no-unused-vars */
 // BUG: Deleting everything in Firefox causes an error
 
@@ -213,7 +215,7 @@ export default class Editor {
      * When inserting a markdown list, contains the 
      * first character of content
      */
-    insertingMarkdownList: false,
+    insertingList: false,
 
     /**
      * Used to avoid redundant observer dispatches
@@ -268,16 +270,18 @@ export default class Editor {
       parent.removeChild(textNode);
       document.execCommand('insertHorizontalRule');
     } else if (type === 'list') {
-      this.state.insertingMarkdownList = textNode.wholeText.split('*')[1].trimLeft();
+      this.state.insertingList = {
+        content: textNode.wholeText.split('*')[1].trimLeft(),
+      }
+
       document.execCommand('insertUnorderedList');
     } else if (type === 'blockquote') {
-      const bnode = document.createElement('blockquote');
-      bnode.innerHTML = `${textNode.wholeText.split('>')[1].trimLeft()}`;
-      parent.insertBefore(bnode, textNode);
-      parent.removeChild(textNode);
+      this.state.insertingList = {
+        className: 'blockquote',
+        content: textNode.wholeText.split('>')[1].trimLeft(),
+      };
 
-
-      moveCursor(bnode, 1);
+      document.execCommand('insertUnorderedList');
     }
   }
 
@@ -301,87 +305,6 @@ export default class Editor {
         if (nodeIsOrHasAncestorOfNames(activeElement, 'LI')) {
           e.preventDefault();
           document.execCommand('indent');
-        }
-      } else if (e.keyCode === 13) {
-        // Trap enters and handle them differently within specific elements
-        const blockquote = nodeIsOrHasAncestorOfNames(activeElement, 'BLOCKQUOTE');
-
-        // TODO: Maybe I need to insert lines within the blockquote to make it possible
-        // to operate on a line-by-line basis within them.
-        if (blockquote) {
-          e.preventDefault();
-          const selObj = window.getSelection();
-          if (selObj.anchorOffset !== selObj.focusOffset) {
-            // User has entered through a selection
-            selObj.deleteFromDocument();
-          }
-
-          if (nodeHasNoUserEnteredText(blockquote)) {
-            const parent = blockquote.parentElement;
-            parent.removeChild(blockquote);
-            parent.innerHTML = '&nbsp';
-            moveCursor(parent, 1);
-            return;
-          }
-
-          // If user has inserted something, insert a new line and continue within this blockquote
-          if (selObj.anchorNode.wholeText === '\u00A0') {
-            // The user hasn't entered any content or pressed enter before
-            // any content, add a new line and send them to it
-            if (selObj.anchorNode === blockquote.lastChild) {
-              selObj.anchorNode.parentElement.removeChild(selObj.anchorNode);
-              const node = document.createElement('div');
-              node.innerHTML = '<br>';
-              node.classList.add('rf-editor-line');
-              insertAfter(blockquote.parentElement.parentElement, blockquote.parentElement, node);
-              moveCursor(node, 1);
-            } else {
-              // This is between blockquote lines and thus needs to be a splice
-              const parent = selObj.anchorNode.parentElement;
-              let i = 0;
-              for (i = 0; i !== parent.childNodes.length; i += 1) {
-                if (parent.childNodes[i] === selObj.anchorNode) {
-                  break;
-                }
-              }
-              const before = Array.prototype.slice.call(parent.childNodes, 0, i - 1);
-              const after = Array.prototype.slice.call(parent.childNodes, i + 1);
-
-              const afterBlockquote = document.createElement('blockquote');
-              after.forEach(node => {
-                afterBlockquote.appendChild(node);
-              });
-
-              parent.removeChild(selObj.anchorNode);
-              const newLine = document.createElement('div');
-              newLine.classList.add('rf-editor-line');
-
-              moveCursor(newLine, 0);
-
-              const afterBlockquoteContainer = document.createElement('div');
-              afterBlockquote.classList.add('rf-editor-line')
-
-              insertAfter(parent.parentElement.parentElement, parent.parentElement, newLine);
-              insertAfter(parent.parentElement.parentElement, afterBlockquote, afterBlockquote);
-
-            }
-          } else {
-            const textAfter = selObj.anchorNode.wholeText && selObj.anchorNode.wholeText.slice(selObj.anchorOffset);
-            const br = document.createElement('br');
-            insertAfter(blockquote, selObj.anchorNode, br);
-            if (textAfter) {
-              // Preserve any content after the user pressed enter
-              // TODO: Rich text. Right?
-              const text = document.createTextNode(textAfter);
-              selObj.anchorNode.data = selObj.anchorNode.wholeText.slice(0, selObj.anchorOffset);
-              insertAfter(blockquote, br, text);
-              moveCursor(text, 0);
-            } else {
-              const nbsp = document.createTextNode('\u00A0');
-              insertAfter(blockquote, br, nbsp);
-              moveCursor(nbsp, 0);
-            }
-          }
         }
       }
     })
@@ -449,22 +372,28 @@ export default class Editor {
               if (prevTextNode) this.processTextNode(prevTextNode, eolRegexen);
             }
           } else if (mutation.addedNodes.length === 1) {
-            if (this.state.insertingMarkdownList && node.nodeName === 'UL') {
+            if (this.state.insertingList && node.nodeName === 'UL') {
               // If true, we've just done an execCommand to create a list, and now we need to 
               // modify the text content
               const li = node.childNodes[0];
               // Modify the text content to 1) remove the * (done in transformText) and 2)
               // move the cursor to the front so the user can keep typing
-              li.innerHTML = this.state.insertingMarkdownList;
+              const { className, content } = this.state.insertingList;
+
+              if (className) {
+                node.classList.add(className);
+              }
+
+              li.innerHTML = content;
 
               moveCursor(li, 1);
 
-              this.state.insertingMarkdownList = false;
-            } else if (this.state.insertingMarkdownList && node.nodeName === 'LI') {
+              this.state.insertingList = false;
+            } else if (this.state.insertingList && node.nodeName === 'LI') {
               // It's possible for an LI to be inserted as a list, because
               // execCommand insertXList at the end of a list splices the LI
               // back onto the list
-              this.state.insertingMarkdownList = false;
+              this.state.insertingList = false;
               node.innerHTML = '';
             } else if (node.nodeName === 'LI' && node.previousSibling) {
               // Detect when an LI has been added to a list in order to fully process

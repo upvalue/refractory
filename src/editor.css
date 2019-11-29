@@ -29,8 +29,10 @@
     monospace;
 }
 
-.rf-editor blockquote {
+.rf-editor ul.blockquote {
   border-left: 2px solid #293742;
+  list-style-type: none;
   padding-left: 6px;
   margin-left: 0;
 }
+
