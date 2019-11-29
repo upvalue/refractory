@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // BUG: Deleting everything in Firefox causes an error
 
 // BUG: Introduce rich formatting to a code block, then try to turn it into a code block
@@ -26,6 +27,9 @@
  * True if running on Firefox
  */
 const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+
+// TODO: Combine these somehow, and get a better list of separators upon which to process 
+// markdown (or is this important? do we need to do it immediately or is EOL fine?)
 
 // For normal editing, we require some kind of breaking
 // character (whitespace, comma) to disambiguate
@@ -67,6 +71,7 @@ const moveCursor = (node, start = 0) => {
   sel.addRange(range);
 }
 
+
 /**
  * Insert a node after a particular node
  * @param {*} parent 
@@ -95,6 +100,10 @@ const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
     next = next.parentNode;
   }
   return false;
+}
+
+const nodeHasNoUserEnteredText = (node) => {
+  return node.innerHTML === '<br>';
 }
 
 /**
@@ -201,7 +210,8 @@ const assert = (desc, expr) => {
 export default class Editor {
   state = {
     /**
-     * True when inserting a markdown list
+     * When inserting a markdown list, contains the 
+     * first character of content
      */
     insertingMarkdownList: false,
 
@@ -295,20 +305,30 @@ export default class Editor {
       } else if (e.keyCode === 13) {
         // Trap enters and handle them differently within specific elements
         const blockquote = nodeIsOrHasAncestorOfNames(activeElement, 'BLOCKQUOTE');
+
+        // TODO: Maybe I need to insert lines within the blockquote to make it possible
+        // to operate on a line-by-line basis within them.
         if (blockquote) {
           e.preventDefault();
-          // OK so need
-          // If this is at the end of the line, or an empty line, remove the blockquote
-          // If this is within a line, insert a br at selection and move everything in it
-          // to a new text node after the selection
           const selObj = window.getSelection();
           if (selObj.anchorOffset !== selObj.focusOffset) {
-            // An actual selection, delete and insert
-            console.warn('unimplemented');
-          } else {
-            // If user has inserted something, insert a new line and continue within this blockquote
-            console.log(selObj);
-            if (selObj.anchorNode.wholeText === '\u00A0') {
+            // User has entered through a selection
+            selObj.deleteFromDocument();
+          }
+
+          if (nodeHasNoUserEnteredText(blockquote)) {
+            const parent = blockquote.parentElement;
+            parent.removeChild(blockquote);
+            parent.innerHTML = '&nbsp';
+            moveCursor(parent, 1);
+            return;
+          }
+
+          // If user has inserted something, insert a new line and continue within this blockquote
+          if (selObj.anchorNode.wholeText === '\u00A0') {
+            // The user hasn't entered any content or pressed enter before
+            // any content, add a new line and send them to it
+            if (selObj.anchorNode === blockquote.lastChild) {
               selObj.anchorNode.parentElement.removeChild(selObj.anchorNode);
               const node = document.createElement('div');
               node.innerHTML = '<br>';
@@ -316,19 +336,50 @@ export default class Editor {
               insertAfter(blockquote.parentElement.parentElement, blockquote.parentElement, node);
               moveCursor(node, 1);
             } else {
-              const textAfter = selObj.anchorNode.wholeText && selObj.anchorNode.wholeText.slice(selObj.anchorOffset);
-              const br = document.createElement('br');
-              insertAfter(blockquote, selObj.anchorNode, br);
-              if (textAfter) {
-                const text = document.createTextNode(textAfter);
-                selObj.anchorNode.data = selObj.anchorNode.wholeText.slice(0, selObj.anchorOffset);
-                insertAfter(blockquote, br, text);
-                moveCursor(text, 0);
-              } else {
-                const nbsp = document.createTextNode('\u00A0');
-                insertAfter(blockquote, br, nbsp);
-                moveCursor(nbsp, 0);
+              // This is between blockquote lines and thus needs to be a splice
+              const parent = selObj.anchorNode.parentElement;
+              let i = 0;
+              for (i = 0; i !== parent.childNodes.length; i += 1) {
+                if (parent.childNodes[i] === selObj.anchorNode) {
+                  break;
+                }
               }
+              const before = Array.prototype.slice.call(parent.childNodes, 0, i - 1);
+              const after = Array.prototype.slice.call(parent.childNodes, i + 1);
+
+              const afterBlockquote = document.createElement('blockquote');
+              after.forEach(node => {
+                afterBlockquote.appendChild(node);
+              });
+
+              parent.removeChild(selObj.anchorNode);
+              const newLine = document.createElement('div');
+              newLine.classList.add('rf-editor-line');
+
+              moveCursor(newLine, 0);
+
+              const afterBlockquoteContainer = document.createElement('div');
+              afterBlockquote.classList.add('rf-editor-line')
+
+              insertAfter(parent.parentElement.parentElement, parent.parentElement, newLine);
+              insertAfter(parent.parentElement.parentElement, afterBlockquote, afterBlockquote);
+
+            }
+          } else {
+            const textAfter = selObj.anchorNode.wholeText && selObj.anchorNode.wholeText.slice(selObj.anchorOffset);
+            const br = document.createElement('br');
+            insertAfter(blockquote, selObj.anchorNode, br);
+            if (textAfter) {
+              // Preserve any content after the user pressed enter
+              // TODO: Rich text. Right?
+              const text = document.createTextNode(textAfter);
+              selObj.anchorNode.data = selObj.anchorNode.wholeText.slice(0, selObj.anchorOffset);
+              insertAfter(blockquote, br, text);
+              moveCursor(text, 0);
+            } else {
+              const nbsp = document.createTextNode('\u00A0');
+              insertAfter(blockquote, br, nbsp);
+              moveCursor(nbsp, 0);
             }
           }
         }

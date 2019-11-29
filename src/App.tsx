@@ -40,8 +40,7 @@ const App = () => {
 
             <p>Text with two sets of <strong>__underscores__</strong> or <strong>**asterisks**</strong>&nbsp; is <strong>bolded</strong>.</p>
 
-            <blockquote>Type |, space and text to create a blockquote.</blockquote>
-
+            <blockquote>Type &gt;, space and text to create a blockquote. Enter space on an empty line to exit.</blockquote>
 
             <ul className="pl2">
               <li>* Type an asterisk, space and character to begin a list</li>
