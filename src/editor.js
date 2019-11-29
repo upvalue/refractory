@@ -93,7 +93,7 @@ const insertAfter = (parent, node, newNode) => {
  * @param {*} node 
  * @param {*} nodeNames Can be a string or an array of strings
  */
-const nodeIsOrHasAncestorOfNames = (node, nodeNames) => {
+const nodeAncestorOfNames = (node, nodeNames) => {
   if (typeof nodeNames === 'string') nodeNames = [nodeNames];
 
   let next = node;
@@ -302,8 +302,12 @@ export default class Editor {
 
       // Trap tabs, allow them to indent an active list (but only when within the list)
       if (e.keyCode === 9) {
-        if (nodeIsOrHasAncestorOfNames(activeElement, 'LI')) {
+        const listItem = nodeAncestorOfNames(activeElement, 'LI');
+        if (listItem) {
           e.preventDefault();
+          // Refuse to indent "blockquotes"
+          const ul = listItem.parentElement;
+          if (ul.classList.contains('blockquote')) return;
           document.execCommand('indent');
         }
       }
