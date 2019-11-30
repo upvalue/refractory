@@ -40,6 +40,10 @@ const App = () => {
 
             <p>Text with two sets of <strong>__underscores__</strong> or <strong>**asterisks**</strong>&nbsp; is <strong>bolded</strong>.</p>
 
+            <p>Type --- to create a horizontal rule</p>
+
+            <hr />
+
             <blockquote>Type &gt;, space and text to create a blockquote. Enter space on an empty line to exit.</blockquote>
 
             <ul className="pl2">
@@ -48,6 +52,10 @@ const App = () => {
                 <li>&lt;tab&gt; to indent, press &lt;enter&gt; on an empty item to dedent</li>
               </ul>
             </ul>
+
+            <ol className="pl2">
+              <li>Or a number followed by a period to start an ordered list</li>
+            </ol>
 
             <p>
               The source of this thing is at <a href="https://github.com/upvalue/refractory">GitHub</a>.

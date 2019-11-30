@@ -1,11 +1,12 @@
 .rf-editor {
+  color: #182026;
   outline: none;
   width: 800px;
   line-height: 1.8em;
 }
 
 .rf-editor hr {
-  border-top: 1px solid #293742;
+  border-top: 1px solid #8a9ba8;
   border-bottom: 0;
   border-left: 0;
   border-right: 0;
@@ -36,3 +37,14 @@
   margin-left: 0;
 }
 
+.rf-editor ol > ol {
+  list-style-type: lower-alpha;
+}
+
+.rf-editor ol > ol > ol {
+  list-style-type: upper-roman;
+}
+
+.rf-editor ol > ol > ol > ol{
+  list-style-type: decimal;
+}

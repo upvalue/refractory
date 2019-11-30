@@ -1,29 +1,34 @@
-import { useLayoutEffect } from 'react';
-
 /* eslint-disable no-unused-vars */
+
 // BUG: Deleting everything in Firefox causes an error
 
 // BUG: Introduce rich formatting to a code block, then try to turn it into a code block
 // It doesn't work because we only go off of text nodes
 
-// BUG: creating HRs after a list adds it to the end of the list (super weird?)
+// BUG: Blockquote and list separation
+// It's possible for user to create a non-logical line by deleting a list bullet
 
-// TODO: hr
-// in place but buggy
+// TODO: HR
+
+// Works, but needs to insert a new line after
+
 // TODO: links
-// TODO: blockquote
-// TODO: unordered list
+
+// BUG: shift-command introduces a BR which then messes up start-of-line stuff
 
 // extended
 
 // TODO: saving/loading sanitized
 // or just create sanitized output (get rid of rf-editor-lines?)
-// TODO: code inline
-// TODO: Table of contents
+// TODO: inline code
 // TODO: Tables
-// TODO: Hashtags
 // TODO: cursor-based popup editor
 // TODO: extensible slash-commands (?)
+
+// TODO: Table of contents 
+// TODO: Hashtags
+
+// TODO: Some kind of state-update callback that allows client app to track usage of the above
 
 /**
  * True if running on Firefox
@@ -190,6 +195,8 @@ const transformText = (toplevelLineStart, str, regexen) => {
         return ['header', headerSize];
       }
     } else if (formatChar.startsWith('* ') && formatChar.length >= 2) {
+      return ['list', 'unordered'];
+    } else if (formatChar.match(/\d\d?.\s/)) {
       return ['list', 'ordered'];
     } else if (formatChar.startsWith('> ') && formatChar.length >= 2) {
       return ['blockquote'];
@@ -238,7 +245,8 @@ export default class Editor {
     // TODO: Why did I add this? does this ever happen? :thonk:
     if (!parent) return;
 
-    const isToplevel = textNode.parentElement.parentElement === this.editor && textNode.previousSibling === null;
+    const isToplevel = textNode.parentElement.parentElement === this.editor &&
+      (textNode.previousSibling === null || textNode.previousSibling.nodeName === 'BR');
 
     const [type, result] = transformText(isToplevel, textNode.wholeText, regexen);
 
@@ -270,11 +278,21 @@ export default class Editor {
       parent.removeChild(textNode);
       document.execCommand('insertHorizontalRule');
     } else if (type === 'list') {
-      this.state.insertingList = {
-        content: textNode.wholeText.split('*')[1].trimLeft(),
-      }
+      if (result === 'unordered') {
+        this.state.insertingList = {
+          content: textNode.wholeText.split('*')[1].trimLeft(),
+        }
 
-      document.execCommand('insertUnorderedList');
+        document.execCommand('insertUnorderedList');
+      } else {
+        const [start] = textNode.wholeText.split('.');
+        this.state.insertingList = {
+          content: '',
+          start,
+        }
+
+        document.execCommand('insertOrderedList');
+      }
     } else if (type === 'blockquote') {
       this.state.insertingList = {
         className: 'blockquote',
@@ -376,7 +394,10 @@ export default class Editor {
               if (prevTextNode) this.processTextNode(prevTextNode, eolRegexen);
             }
           } else if (mutation.addedNodes.length === 1) {
-            if (this.state.insertingList && node.nodeName === 'UL') {
+            if (this.state.insertingList && (node.nodeName === 'UL' || node.nodeName === 'OL')) {
+              if (node.nodeName === 'OL') {
+                node.setAttribute('start', this.state.insertingList.start);
+              }
               // If true, we've just done an execCommand to create a list, and now we need to 
               // modify the text content
               const li = node.childNodes[0];
