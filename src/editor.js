@@ -2,6 +2,10 @@
 
 // BUG: Deleting everything in Firefox causes an error
 
+// BUG: Firefox doesn't insert new rf-editor-line
+
+// BUG: Test on firefox
+
 // BUG: Introduce rich formatting to a code block, then try to turn it into a code block
 // It doesn't work because we only go off of text nodes
 
@@ -13,13 +17,14 @@
 // Works, but needs to insert a new line after
 
 // TODO: links
+// TODO: Entities
 
 // BUG: shift-command introduces a BR which then messes up start-of-line stuff
 
 // extended
 
 // TODO: saving/loading sanitized
-// or just create sanitized output (get rid of rf-editor-lines?)
+// considered just having sane output but contenteditable makes this hard to do
 // TODO: inline code
 // TODO: Tables
 // TODO: cursor-based popup editor
@@ -246,7 +251,7 @@ export default class Editor {
     if (!parent) return;
 
     const isToplevel = textNode.parentElement.parentElement === this.editor &&
-      (textNode.previousSibling === null || textNode.previousSibling.nodeName === 'BR');
+      (textNode.previousSibling === null || ['BR', 'HR'].includes(textNode.previousSibling.nodeName));
 
     const [type, result] = transformText(isToplevel, textNode.wholeText, regexen);
 
