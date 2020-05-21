@@ -1,23 +1,12 @@
-import React, { useRef, useEffect } from 'react';
-import Editor from './editor';
-import './editor.css';
+import React, { useRef } from 'react';
+// import Editor from './editor';
+// import './editor.css';
 
 const App = () => {
   const ref = useRef<HTMLDivElement | null>(null);
 
-  const editorRef = useRef<Editor | null>(null);
-
-  useEffect(() => {
-    if (ref.current !== null) {
-      const editor = new Editor();
-      editorRef.current = editor;
-      editor.mount(ref.current);
-    }
-  }, [ref]);
-
   const actionReset = () => {
-    if (!ref.current) return;
-    ref.current.innerHTML = `<div className="rf-editor-line">Click to edit</div>`;
+    console.log('reset pressed');
   }
 
   return (
@@ -31,39 +20,10 @@ const App = () => {
             <div className="buttons">
               <button onClick={actionReset}>Reset</button>
             </div>
-
-            <p>Warning: contenteditable is gross. Approach with caution.</p>
-
-            <h5>### Type pound # then space to create a header</h5>
-
-            <p>Text with one set of <em>_underscores_</em> or <em>*asterisks*</em>&nbsp; is <em>italicized</em>.</p>
-
-            <p>Text with two sets of <strong>__underscores__</strong> or <strong>**asterisks**</strong>&nbsp; is <strong>bolded</strong>.</p>
-
-            <p>Type --- to create a horizontal rule</p>
-
-            <hr />
-
-            <blockquote>Type &gt;, space and text to create a blockquote. Enter space on an empty line to exit.</blockquote>
-
-            <ul className="pl2">
-              <li>* Type an asterisk, space and character to begin a list</li>
-              <ul className="pl3">
-                <li>&lt;tab&gt; to indent, press &lt;enter&gt; on an empty item to dedent</li>
-              </ul>
-            </ul>
-
-            <ol className="pl2">
-              <li>Or a number followed by a period to start an ordered list</li>
-            </ol>
-
-            <p>
-              The source of this thing is at <a href="https://github.com/upvalue/refractory">GitHub</a>.
-          </p>
           </div>
         </div>
 
-        <div className="p2" ref={ref} contentEditable={true} suppressContentEditableWarning={true}>
+        <div className="p2" ref={ref}>
           <div className="rf-editor-line">Click to edit</div>
         </div>
       </div>
