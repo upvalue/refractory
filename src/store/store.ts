@@ -3,6 +3,7 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 import logger from 'redux-logger';
 
 import short from 'short-uuid';
+import { TDocument } from './types';
 
 const translator = short();
 
@@ -12,18 +13,24 @@ const generateId = (tipe: string) => {
 
 const initialDocument = {
   id: generateId('doc'),
-  document: {
-    type: 'paragraph',
+  document: [{
+    type: 'line',
     children: [{ text: 'click to edit' }]
-  }
+  }]
 };
 
+const initialCollection = {
+  id: generateId('collection'),
+};
 
 const docs = createSlice({
   name: "docs",
   initialState: {
     documents: [initialDocument],
     currentDocument: initialDocument.id,
+    collections: {
+      [initialCollection.id]: initialCollection,
+    }
   },
   reducers: {
   },

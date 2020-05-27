@@ -4,8 +4,6 @@ import { TEditor } from './editor/TEditor';
 import { useStore } from 'react-redux';
 
 const App = () => {
-
-  // Render the Slate context.
   return (
     <div className="App flex justify-center pt3">
       <div className="flex">

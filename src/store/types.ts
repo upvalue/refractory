@@ -4,6 +4,8 @@
  * For simplicty's sake, we keep these separate from SlateJS types, since SlateJS has some
  * fairly generous type definitions (e.g. allowing [key: string]: unknown) and we can narrow
  * our types down and use them in and around the program.
+ * 
+ * Also prefix them with T since there's a lot of overlap with both Slate types and browser builtins.
  */
 
 export type TText = {
@@ -27,3 +29,14 @@ export type TDocumentRecord = {
   id: string;
   document: TDocument;
 };
+
+export type TCollection = {
+  id: string;
+  collectionType: 'simple';
+};
+
+export type TState = {
+  documents: TDocumentRecord[];
+  currentDocument: string;
+  collections: { [key: string]: TCollection };
+}
