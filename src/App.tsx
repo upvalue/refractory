@@ -1,14 +1,11 @@
-import React, { useRef } from 'react';
-// import Editor from './editor';
-// import './editor.css';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
+
+import { TEditor } from './editor/TEditor';
+import { useStore } from 'react-redux';
 
 const App = () => {
-  const ref = useRef<HTMLDivElement | null>(null);
 
-  const actionReset = () => {
-    console.log('reset pressed');
-  }
-
+  // Render the Slate context.
   return (
     <div className="App flex justify-center pt3">
       <div className="flex">
@@ -17,15 +14,12 @@ const App = () => {
           <div className="p2">
             <h3 className="mb2">Refractory</h3>
 
-            <div className="buttons">
-              <button onClick={actionReset}>Reset</button>
-            </div>
+            <p>document navigation</p>
           </div>
         </div>
 
-        <div className="p2" ref={ref}>
-          <div className="rf-editor-line">Click to edit</div>
-        </div>
+        <TEditor />
+
       </div>
     </div>
   );
