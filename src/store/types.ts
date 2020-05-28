@@ -35,6 +35,12 @@ export type TCollection = {
   collectionType: 'simple';
 };
 
+export type TCollectionEntry = {
+  id: string;
+  entryStatus: 'unset' | 'complete' | 'incomplete';
+  entryValue: any;
+};
+
 export type TState = {
   documents: TDocumentRecord[];
   currentDocument: string;

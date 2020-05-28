@@ -118,6 +118,10 @@ export const markdownRanges = (text: string): MarkdownRange[] => {
     strong: [],
   }
 
+  // Problems with quoty quotes
+  // Can't have bold/emph inside of quotes, but as is I think slatejs would make them using
+  // these ranges. Does ` have to wipe out other ranges?
+
   for (const token of tokens) {
     if (token.type === 'emph' || token.type === 'strong') {
       // Left flank = push onto stack

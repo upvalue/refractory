@@ -4,6 +4,8 @@ import { RenderLeafProps } from "slate-react";
 export const RenderLeaf = (props: RenderLeafProps) => {
   const { attributes, children, leaf } = props;
 
+  // TODO: This should emit classNames and combine properties
+
   if (leaf.emph) {
     return (
       <em

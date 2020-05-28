@@ -1,22 +1,21 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React from 'react';
 
 import { TEditor } from './editor/TEditor';
-import { useStore } from 'react-redux';
+import { Sidebar } from './navigation/Sidebar';
+import { Switch, Route } from 'react-router';
+import { DocumentRoute } from './routes/DocumentRoute';
 
 const App = () => {
   return (
     <div className="App flex justify-center pt3">
       <div className="flex">
+        <Sidebar />
 
-        <div className="sidebar mr4">
-          <div className="p2">
-            <h3 className="mb2">Refractory</h3>
-
-            <p>document navigation</p>
-          </div>
-        </div>
-
-        <TEditor />
+        <Switch>
+          <Route path={"/document/:documentId"}>
+            <DocumentRoute />
+          </Route>
+        </Switch>
 
       </div>
     </div>

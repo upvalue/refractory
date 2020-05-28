@@ -5,13 +5,19 @@ import { NodeEntry, Node, Range, Text } from 'slate';
 
 import { makeEditor } from './lib/editor';
 import { markdownRanges } from './lib/markdown';
-import { TDocument, TState } from '../store/types';
+import { TDocument, TState, TDocumentRecord } from '../store/types';
 import { useSelector } from 'react-redux';
 import { RenderLeaf } from './RenderLeaf';
 import { RenderElement } from './RenderElement';
+import { useRouteMatch } from 'react-router';
 
 export type Props = {
+  document: TDocumentRecord;
 }
+
+type RouteParams = {
+  documentId: string;
+};
 
 /**
  * Editor with custom extensions
@@ -19,6 +25,7 @@ export type Props = {
 export const TEditor = (props: Props) => {
   const ref = useRef<HTMLDivElement | null>(null);
 
+  const selectedDocument = props.document;
   const editor = useMemo(() => withReact(makeEditor()), [])
 
   const decorate = ([node, path]: NodeEntry<Node>) => {
@@ -36,14 +43,6 @@ export const TEditor = (props: Props) => {
   }
 
   // Pull in current document from Redux
-  const currentDocument = useSelector((state: TState) => state.currentDocument);
-  const selectedDocument = useSelector((state: TState) => {
-    const doc = state.documents.find(doc => doc.id === state.currentDocument)
-    if (!doc) {
-      throw new Error('shucks');
-    }
-    return doc;
-  });
 
   const [value, setValue] = useState<TDocument>([
     {
@@ -54,7 +53,7 @@ export const TEditor = (props: Props) => {
 
   useEffect(() => {
     setValue(selectedDocument.document);
-  }, [currentDocument]);
+  }, [selectedDocument.id]);
 
   return (
     <>
