@@ -4,7 +4,7 @@ import { RenderLeafProps } from "slate-react";
 export const RenderLeaf = (props: RenderLeafProps) => {
   const { attributes, children, leaf } = props;
 
-  if (leaf.italic) {
+  if (leaf.emph) {
     return (
       <em
         {...attributes}
@@ -12,7 +12,7 @@ export const RenderLeaf = (props: RenderLeafProps) => {
         {children}
       </em>
     )
-  } else if (leaf.bold) {
+  } else if (leaf.strong) {
     return (
       <strong
         {...attributes}

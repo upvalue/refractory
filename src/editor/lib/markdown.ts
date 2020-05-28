@@ -1,68 +1,147 @@
-// markdown.ts - limited markdown parser for slatejs decorations
+// markdown.ts - limited inline markdown parser for slatejs decorations
 
-export type MarkdownToken = {
-  type: 'bold' | 'text' | 'italic';
-  content: ReadonlyArray<MarkdownToken | string>;
+import { Range } from "slate";
+
+// TODO: There is no need to allocate intermediate structures here
+
+type Emphases = {
+  type: 'strong' | 'emph';
+  flank: 'left' | 'right' | 'both';
   start: number;
   end: number;
 }
 
-export const parseMarkdownParagraph = (text: string, start: number) => {
-  const stack: Array<MarkdownToken | string> = [];
+type Token = Emphases | {
+  type: 'text';
+  text: string;
+  begin: number;
+  end: number;
+}
 
-  let textSlice = 0;
+const isSpace = (c: string) => c.charCodeAt(0) < 33;
 
-  const saveText = (i: number) => {
-    if (text.slice(textSlice, i) !== '') {
-      stack.push(text.slice(textSlice, i));
+/**
+ * Convert markdown into a list of tokens which can
+ * be parsed to build up ranges
+ * @param text 
+ */
+export const markdownTokens = (text: string) => {
+  const tokens: Token[] = [];
+
+  let textBegin = 0;
+  let i = 0;
+
+  const pushToken = (i: number, token: Token) => {
+    if (i !== textBegin) {
+      const before = text.slice(textBegin, i);
+
+      tokens.push({
+        type: 'text',
+        text: before,
+        begin: textBegin,
+        end: i - 1,
+      });
+    }
+
+    tokens.push(token);
+
+    return token.end;
+  }
+
+  for (; i < text.length; i += 1) {
+    if (text[i] === '*' || text[i] === '_') {
+      let rightFlank = false;
+      let strong = false;
+      // If strong, need to check two characters ahead instead of one
+      let offset = 1;
+      let leftFlank = false;
+
+      // Check for preceding text (right-flanking)
+      if (i > 0 && !isSpace(text[i - 1])) {
+        rightFlank = true;
+      }
+
+      // Check for strong emphasis 
+      if (i + 1 !== text.length && text[i + 1] === text[i]) {
+        strong = true;
+        offset = 2;
+      }
+
+      // Check for succeeding text (left-flanking)
+      if (i + offset !== text.length && !isSpace(text[i + offset])) {
+        leftFlank = true;
+      }
+
+      if (leftFlank || rightFlank) {
+        textBegin = pushToken(i, {
+          type: strong ? 'strong' : 'emph',
+          flank: (leftFlank && rightFlank) ? 'both' : (leftFlank ? 'left' : 'right'),
+          start: i,
+          end: i + offset,
+        });
+      }
+
+      i += offset;
+      continue;
     }
   }
 
-  // TODO: I actually don't even need to allocate multiple strings here, since I'm not
-  // producing a tree, I just need the ranges.
+  if (textBegin < text.length) {
+    tokens.push({
+      type: 'text',
+      text: text.slice(textBegin),
+      begin: textBegin,
+      end: text.length,
+    });
+  }
 
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text[i];
+  return tokens;
+}
 
-    // Possible italic open, consume to next *
-    // TODO: Heck of code duplications
-    if (c === '*') {
-      if (i + 1 !== text.length && text[i + 1] === '*') {
-        for (let j = i + 1; j < text.length; j += 1) {
-          if (text[j] === '*') {
-            if (j + 1 !== text.length && text[j + 1] === '*') {
-              saveText(i);
-              stack.push({
-                type: 'bold',
-                content: parseMarkdownParagraph(text.slice(i + 2, j), i + 2),
-                start: start + i,
-                end: start + j,
-              });
-              i = textSlice = j + 2;
-              break;
-            }
-          }
-        }
+export type MarkdownRange = {
+  type: 'strong' | 'emph';
+  start: number;
+  end: number;
+};
+
+/**
+ * Build SlateJS ranges out of markdown
+ * @param text 
+ */
+export const markdownRanges = (text: string): MarkdownRange[] => {
+  const tokens = markdownTokens(text);
+
+  const ranges: MarkdownRange[] = [];
+
+  const stacks: { [key: string]: Token[] } = {
+    emph: [],
+    strong: [],
+  }
+
+  for (const token of tokens) {
+    if (token.type === 'emph' || token.type === 'strong') {
+      // Left flank = push onto stack
+      if (token.flank === 'left') {
+        stacks[token.type].push(token);
       } else {
-        for (let j = i + 1; j < text.length; j += 1) {
-          if (text[j] === '*') {
-            saveText(i);
-            stack.push({
-              type: 'italic',
-              content: parseMarkdownParagraph(text.slice(i + 1, j), i + 1),
-              start: start + i,
-              end: start + j + 1,
-            });
-            i = textSlice = j + 1;
-            break;
+        // Both flank = if there is something, pop from stack and add range
+        // Otherwise push to range
+        if (stacks[token.type].length > 0) {
+          const left = stacks[token.type].pop();
+          if (!left || left.type !== token.type) {
+            throw new Error('make typescript happy');
           }
+          ranges.push({
+            type: token.type,
+            start: left.start,
+            end: token.end,
+          });
+        } else if (token.flank === 'both') {
+          stacks[token.type].push(token);
         }
       }
     }
   }
 
-  saveText(text.length);
-
-  return stack;
+  return ranges;
 }
-

@@ -12,7 +12,7 @@ export const RenderElement = (args: RenderElementProps) => {
       return <h1 {...attributes}>{children}</h1>
     case 'line':
       return <div {...attributes}>{children}</div>
+    default:
+      return <div>this should never happen</div>
   }
-
-  return <div>this should never happen</div>
 }

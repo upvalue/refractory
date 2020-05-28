@@ -4,7 +4,7 @@ import { Slate, Editable, withReact, RenderLeafProps } from 'slate-react'
 import { NodeEntry, Node, Range, Text } from 'slate';
 
 import { makeEditor } from './lib/editor';
-import { parseMarkdownParagraph, MarkdownToken } from './lib/markdown';
+import { markdownRanges } from './lib/markdown';
 import { TDocument, TState } from '../store/types';
 import { useSelector } from 'react-redux';
 import { RenderLeaf } from './RenderLeaf';
@@ -28,27 +28,11 @@ export const TEditor = (props: Props) => {
       return ranges;
     }
 
-    const buildRanges = (tokens: ReadonlyArray<MarkdownToken | string>) => {
-      for (const token of tokens) {
-        if (typeof token === 'string') {
-          continue;
-        }
-
-        ranges.push({
-          [token.type]: true,
-          anchor: { path, offset: token.start },
-          focus: { path, offset: token.end },
-        });
-
-        buildRanges(token.content);
-      }
-    }
-
-    const tokens = parseMarkdownParagraph(node.text, 0);
-
-    buildRanges(tokens);
-
-    return ranges;
+    return markdownRanges(node.text).map(node => ({
+      [node.type]: true,
+      anchor: { path, offset: node.start },
+      focus: { path, offset: node.end },
+    }));
   }
 
   // Pull in current document from Redux
