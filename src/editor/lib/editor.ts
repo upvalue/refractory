@@ -1,5 +1,6 @@
-import { withReact } from 'slate-react'
-import { Editor, createEditor, Transforms, Node, Text, Element, Range, Point, Path } from 'slate';
+// editor.ts - slatejs extensions
+import { withReact, ReactEditor } from 'slate-react'
+import { Editor, createEditor, Transforms, Range } from 'slate';
 
 const softAssert = (exp: boolean, message: string) => {
   if (!exp) {
@@ -94,8 +95,13 @@ const withShortcuts = (editor: Editor) => {
 }
 
 /**
+ * An instance of a refractory SlateJS editor with React add-ons
+ */
+export type EditorInstance = Editor & ReactEditor;
+
+/**
  * Instantiate a SlateJS editor instance with custom modifications
  */
-export const makeEditor = () => {
-  return withShortcuts(withReact(createEditor()));
+export const makeEditor = (): EditorInstance => {
+  return withReact(withShortcuts(createEditor()));
 }

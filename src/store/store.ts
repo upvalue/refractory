@@ -3,7 +3,7 @@ import logger from 'redux-logger';
 
 import { TDocument, TDocumentRecord } from './types';
 import { generateId } from '../lib/utilities';
-import { loadState } from './storage';
+import { loadState, saveState } from './storage';
 
 
 const initialDocument: TDocumentRecord = {
@@ -55,11 +55,18 @@ const docs = createSlice({
   },
 });
 
+const persistMiddleware: any = (store: any) => (next: any) => (action: any) => {
+  let result = next(action);
+  saveState(store.getState());
+  return result;
+}
+
 export const { createDocument, updateDocument } = docs.actions;
 
 export const store = configureStore({
   reducer: docs.reducer,
   middleware: [
+    persistMiddleware,
     logger,
   ],
 })

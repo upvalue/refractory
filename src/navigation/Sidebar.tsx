@@ -31,7 +31,7 @@ export const Sidebar = () => {
 
         <div className="mt2">
           <div className="bold">Collections</div>
-          {Object.entries(collections).map(([k, collection]) => <div id={k}><Link to={`/collections/${k}`}>@{collection.name}</Link></div>)}
+          {Object.entries(collections).map(([k, collection]) => <div key={k}><Link to={`/collections/${k}`}>@{collection.name}</Link></div>)}
         </div>
 
         <div className="mt2">

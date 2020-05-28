@@ -1,8 +1,7 @@
 // markdown.ts - limited inline markdown parser for slatejs decorations
 
-import { Range } from "slate";
-
-// TODO: There is no need to allocate intermediate structures here
+// TODO: There is no need to allocate intermediate structures here.
+// Both functions in this + decorate should be the same
 
 type Emphases = {
   type: 'strong' | 'emph';
