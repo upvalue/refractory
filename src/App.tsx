@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { TEditor } from './editor/TEditor';
 import { Sidebar } from './navigation/Sidebar';
 import { Switch, Route } from 'react-router';
 import { DocumentRoute } from './routes/DocumentRoute';

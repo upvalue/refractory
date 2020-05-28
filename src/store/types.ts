@@ -31,8 +31,8 @@ export type TDocumentRecord = {
 };
 
 export type TCollection = {
-  id: string;
   collectionType: 'simple';
+  name: string;
 };
 
 export type TCollectionEntry = {
@@ -43,6 +43,5 @@ export type TCollectionEntry = {
 
 export type TState = {
   documents: TDocumentRecord[];
-  currentDocument: string;
   collections: { [key: string]: TCollection };
 }
